@@ -1,0 +1,10 @@
+#temporary files
+*~
+*.swp
+
+#generated files
+.depend
+*.o
+*.so
+hexStringTest
+socketTest
