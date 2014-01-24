@@ -22,6 +22,9 @@ char *Hostname = "localhost";
 long Port = 9876;
 int simSocket = -1;
 
+int AtrLength = 30;
+char* AtrBuffer[30];
+
 RESPONSECODE IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun %d, DeviceName %s)",
@@ -58,29 +61,15 @@ RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
 	connect(simSocket, (struct sockadr *)&dest, sizeof(struct sockaddr));
 
 
+	//TODO check if this can go into IFDHPowerICC
+	// send powerOn to simulator
+	char cmdApdu[] = "FF010000";
+	int respApduSize = BUFFERSIZE; // 2 chars per byte plus \n\0
+	char respApdu[respApduSize];
+	exchangeApdu(cmdApdu, respApdu, respApduSize);
+	
 
-
-#define BUFFERSIZE = 500
-#define PORT = 9876
-
-char buffer[500 + 1]; //PP BUFFER
-char* msg = "0084000008\n";
-
-
-
-
-
-
-
-
-
-
-
-
-	//TODO implement socket setup
-
-
-	Log3(PCSC_LOG_DEBUG, "create socket connection to %s:%d", Hostname,
+	Log3(PCSC_LOG_DEBUG, "socket connected to %s:%d", Hostname,
 	     Port);
 	return IFD_SUCCESS;
 }
@@ -196,7 +185,7 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 	char respApdu[respApduSize];
 	
 	//perform the exchange
-	exchangeApdu(cmdApdu, respApdu, &respApduSize);
+	exchangeApdu(cmdApdu, respApdu, respApduSize);
 	
 
 	//copy response to RxBuffer
@@ -212,47 +201,22 @@ RESPONSECODE IFDHICCPresence(DWORD Lun)
 }
 
 /*
- * The allocated buffers cmdApdu and respApdu need to be large enough to append at least \n
+ * Expects cmdApdu to contain a HexString and respApdu to be large enough to hold the complete response HexString both including \0 termination
  */
-void exchangeApdu(char* cmdApdu, char* respApdu, int* respApduSize)
+void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 {
-	Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n %s", cmdApdu);
+	Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n%s\n", cmdApdu);
 
-	//append \n to cmdApdu
-	int len = strlen(cmdApdu);
-	cmdApdu[len++] = '\n';
-	cmdApdu[len] = '\0';
-	
-
-	//TODO	exchange APDU
-	
-	// transmit an APDU
-	char* msg = "0084000008\n";
-//	send(mysocket, msg, strlen(msg), 0); 
-//	send(simSocket, msg, strlen(msg), 0); 
-
-	// transmit an APDU
-	len = send(simSocket, cmdApdu, len, 0); 
+	// transmit cmdApdu
+	int len = send(simSocket, cmdApdu, strlen(cmdApdu), 0); 
+	len = send(simSocket, "\n", 1, 0); 
 
 	// receive response
-	len = recv(simSocket, respApdu, *respApduSize, 0);
+	len = 0;
+	do {
+		len += recv(simSocket, respApdu + len, respApduSize - len, 0);
+	} while (len < respApduSize && respApdu[len-1] != '\n');
+	respApdu[len-1] = '\0';
 
-	// remove trailing \n and terminate string with \0
-	len--;
-	respApdu[len] = '\0';
-
-//	respApdu[0] = '1';
-//	respApdu[1] = '2';
-//	respApdu[2] = '9';
-//	respApdu[3] = '0';
-//	respApdu[4] = '0';
-//	respApdu[5] = '0';
-//	respApdu[6] = '\n';
-//	respApdu[7] = '\0';
-
-	//remove trailing newline 
-//	len = strlen(respApdu);
-//	cmdApdu[len-1] = '\0';
-	
-	Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n %s", respApdu);
+	Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n%s\n", respApdu);
 }
