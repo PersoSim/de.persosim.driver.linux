@@ -15,8 +15,16 @@
 #define TRUE	0
 #define FALSE	1
 
+#define PSIM_CMD_POWEROFF	"FF000000"
+#define PSIM_CMD_POWERON	"FF010000"
+#define PSIM_CMD_PING		"FF900000"
+#define PSIM_CMD_RESET		"FFEE0000"
+#define PSIM_CMD_SWITCHOFF	"FFFF0000"
+#define PSIM_CMD_LENGTH		9
+
 //BUFFERSIZE is maximum of extended length APDU plus 2 bytes for status word
 #define BUFFERSIZE	0x10001
+char intBuffer[BUFFERSIZE];
 
 char *Hostname = "localhost";
 long Port = 9876;
@@ -61,14 +69,6 @@ RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
 	connect(simSocket, (struct sockadr *)&dest, sizeof(struct sockaddr));
 
 
-	//TODO check if this can go into IFDHPowerICC
-	// send powerOn to simulator
-	char cmdApdu[] = "FF010000";
-	int respApduSize = BUFFERSIZE; // 2 chars per byte plus \n\0
-	char respApdu[respApduSize];
-	exchangeApdu(cmdApdu, respApdu, respApduSize);
-	
-
 	Log3(PCSC_LOG_DEBUG, "socket connected to %s:%d", Hostname,
 	     Port);
 	return IFD_SUCCESS;
@@ -78,8 +78,9 @@ RESPONSECODE IFDHCloseChannel(DWORD Lun)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun %d)", Lun);
 	
-	// TODO powerOff the simulator
-	// transmitControlAPDU("00FF0000");
+	// powerOff the simulator
+	int AtrLength = MAX_ATR_SIZE;
+	IFDHPowerICC(Lun, IFD_POWER_DOWN, intBuffer, AtrLength);
 
 	//close socket connection
 	if (simSocket >= 0)
@@ -147,20 +148,30 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 
 RESPONSECODE IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
-	//TODO
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
+	char cmdApdu[PSIM_CMD_LENGTH];
 	switch (Action) {
 	case IFD_POWER_DOWN:
-		//TODO send PowerDown to Socket
+		// send PowerOff to simulator
+		strcpy(cmdApdu, PSIM_CMD_POWEROFF);
+		exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
 		//TODO unset cached atr
+		break;
 	case IFD_POWER_UP:
-		//TODO send PowerUp to Socket
+		// send PowerOn to simulator
+		strcpy(cmdApdu, PSIM_CMD_POWERON);
+		exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
 		//TODO set atr according to response
+		break;
 	case IFD_RESET:
-		//TODO send Reset to Socket
+		// send Reset to simulator
+		strcpy(cmdApdu, PSIM_CMD_RESET);
+		exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
 		//TODO update atr according to response
+		break;
 	default:
 		Log3(PCSC_LOG_ERROR, "IFDHPowerICC (Lun %d) - unsupported Action 0x%X", Lun, Action);
+		return IFD_NOT_SUPPORTED;
 	}
 
 	//return the ATR and its size (as cached above)
@@ -175,13 +186,12 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun %d)", Lun);
 	
 	//convert APDU tho HexString
-	int cmdApduSize = TxLength * 2 + 2; // 2 chars per byte plus \n\0
+	int cmdApduSize = TxLength * 2 + 1; // 2 chars per byte plus \0
 	char cmdApdu[cmdApduSize];
 	HexByteArray2String(TxBuffer, TxLength, cmdApdu);
-	Log2(PCSC_LOG_DEBUG, "APDU %s", cmdApdu);
 
 	//prepare buffer for response APDU
-	int respApduSize = *RxLength * 2 + 2; // 2 chars per byte plus \n\0
+	int respApduSize = *RxLength * 2 + 1; // 2 chars per byte plus \0
 	char respApdu[respApduSize];
 	
 	//perform the exchange
@@ -196,8 +206,20 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 
 RESPONSECODE IFDHICCPresence(DWORD Lun)
 {
-	//TODO
-	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun); 
+	Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun); 
+	// send PowerOn to simulator
+//	char cmdApdu[PSIM_CMD_LENGTH];
+//	strcpy(cmdApdu, PSIM_CMD_PING);
+//	exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
+
+//	if (strcmp(intBuffer, "9000"))
+//	{
+		return IFD_SUCCESS; 
+//	}
+//	else
+//	{
+//		return IFD_ICC_NOT_PRESENT;
+//	}
 }
 
 /*
