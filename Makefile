@@ -24,6 +24,14 @@ $(DEPENDFILE): *.c
 clean:
 	rm -f *.o $(LIBNAME) $(DEPENDFILE) hexStringTest
 
+install: libPersoSim.so
+	sudo cp reader.conf /etc/reader.conf.d/persoSim
+	sudo cp libPersoSim.so /usr/lib/pcsc/drivers/serial/
+
+uninstall: 
+	sudo rm -f /etc/reader.conf.d/persoSim
+	sudo rm -f /usr/lib/pcsc/drivers/serial/libPersoSim.so
+
 test: hexStringTest
 	./hexStringTest
 
