@@ -288,7 +288,7 @@ RESPONSECODE IFDHICCPresence(DWORD Lun)
  */
 void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 {
-	Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n%s\n", cmdApdu);
+	//Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n%s\n", cmdApdu);
 
 	// transmit cmdApdu
 	int len = send(simSocket, cmdApdu, strlen(cmdApdu), 0); 
@@ -301,6 +301,6 @@ void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 	} while (len < respApduSize && respApdu[len-1] != '\n');
 	respApdu[len-1] = '\0';
 
-	Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n%s\n", respApdu);
+	//Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n%s\n", respApdu);
 }
 
