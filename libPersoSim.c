@@ -11,6 +11,8 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #define TRUE	0
 #define FALSE	1
@@ -26,8 +28,9 @@
 #define BUFFERSIZE	0x10001
 char intBuffer[BUFFERSIZE];
 
-char *Hostname = "localhost";
-long Port = 9876;
+#define DEVICENAMESIZE 200
+char Hostname[DEVICENAMESIZE];
+char Port[DEVICENAMESIZE];
 int simSocket = -1;
 
 int CachedAtrLength = 0;
@@ -37,7 +40,24 @@ RESPONSECODE IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun %d, DeviceName %s)",
 	     Lun, DeviceName);
-	//TODO extract Hostname and Port from DeviceName
+	// extract Hostname and Port from DeviceName
+	char* colon = strchr(DeviceName, ':');
+	if (colon)
+	{
+		colon[0] = '\0';
+		strcpy(Hostname, DeviceName);
+		colon++;
+		strcpy(Port, colon);
+	}
+	else
+	{
+		strcpy(Hostname, "localhost");
+		strcpy(Port, "9876");
+		Log3(PCSC_LOG_INFO, "DEVICENAME malformed, using default %s:%s instead", Hostname, Port);
+	} 
+	Log2(PCSC_LOG_DEBUG, "Hostname _%s_", Hostname);
+	Log2(PCSC_LOG_DEBUG, "Port _%s_", Port);
+	
 	return IFDHCreateChannel(Lun, 0x00);
 }
 
@@ -55,25 +75,50 @@ RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun %d, Channel 0x%x)", Lun,
 	     Channel);
 
-	// allocate socket
-	simSocket = socket(AF_INET, SOCK_STREAM, 0);
+	// find the remote address (candidates)
+	struct addrinfo hints, *servinfo, *p;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if (getaddrinfo(Hostname, Port, &hints, &servinfo) != 0) {
+		Log3(PCSC_LOG_ERROR, "Unable to resolve %s:%d", Hostname, Port);
+		return IFD_NO_SUCH_DEVICE;
+	}
 
-	// define the remote address
-	struct sockaddr_in dest;
-	memset(&dest, 0, sizeof(dest));
-	dest.sin_family = AF_INET;
-	dest.sin_addr.s_addr = htonl(INADDR_LOOPBACK); //TODO use Hostname
-	dest.sin_port = htons(Port);
+	// loop through all the results and connect to the first that works
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		// allocate socket
+		if ((simSocket = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			// socket could not be allocated, try next one
+			continue;
+		}
 
-	// connect
-	connect(simSocket, (struct sockadr *)&dest, sizeof(struct sockaddr));
-	
+		// connect to server
+		if (connect(simSocket, p->ai_addr, p->ai_addrlen) == -1) {
+			// connection failed, close socket and try next one
+			close(simSocket);
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		freeaddrinfo(servinfo);
+		Log3(PCSC_LOG_ERROR, "Unable to connect to %s:%d", Hostname, Port);
+		return IFD_COMMUNICATION_ERROR;
+	}
+	//free all found addresses
+	freeaddrinfo(servinfo);
+
+
 	// powerOn the simulator (in order to keep the connection alive)
 	int AtrLength = MAX_ATR_SIZE;
 	IFDHPowerICC(Lun, IFD_POWER_UP, intBuffer, &AtrLength);
 
 
-	Log3(PCSC_LOG_DEBUG, "socket connected to %s:%d", Hostname,
+	Log3(PCSC_LOG_DEBUG, "Socket connected to %s:%d", Hostname,
 	     Port);
 	return IFD_SUCCESS;
 }

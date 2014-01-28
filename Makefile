@@ -1,5 +1,5 @@
 CC       = cc
-CFLAGS   = -g -std=c99 -fpic -w
+CFLAGS   = -g -std=gnu99 -fpic -w
 INCLUDE  = -I. -I/usr/include/PCSC
 DEPENDFILE = .depend
 
