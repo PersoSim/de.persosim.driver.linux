@@ -220,19 +220,19 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 RESPONSECODE IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun); 
-	// send PowerOn to simulator
-//	char cmdApdu[PSIM_CMD_LENGTH];
-//	strcpy(cmdApdu, PSIM_CMD_PING);
-//	exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
+	// send PresencePing to simulator
+	char cmdApdu[PSIM_CMD_LENGTH];
+	strcpy(cmdApdu, PSIM_CMD_PING);
+	exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
 
-//	if (strcmp(intBuffer, "9000"))
-//	{
+	if (strcmp(intBuffer, "9000") == 0)
+	{
 		return IFD_SUCCESS; 
-//	}
-//	else
-//	{
-//		return IFD_ICC_NOT_PRESENT;
-//	}
+	}
+	else
+	{
+		return IFD_ICC_NOT_PRESENT;
+	}
 }
 
 /*
