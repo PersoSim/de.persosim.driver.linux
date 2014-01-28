@@ -66,8 +66,9 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	    TxBuffer, DWORD TxLength, PUCHAR RxBuffer, DWORD RxLength,
 	    LPDWORD pdwBytesReturned)
 {
-	//TODO
-	Log2(PCSC_LOG_DEBUG, "IFDHControl (Lun %d)", Lun);
+	// not yet supported, will be needed to implement standard reader functionality
+	// Log2(PCSC_LOG_DEBUG, "IFDHControl (Lun %d)", Lun);
+	return IFD_NOT_SUPPORTED;
 }
 
 RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
@@ -183,16 +184,18 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 RESPONSECODE
 IFDHSetCapabilities(DWORD Lun, DWORD Tag, DWORD Length, PUCHAR Value)
 {
-	//TODO
-	Log2(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun %d)", Lun);
+	// not yet supported
+	// Log2(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun %d)", Lun);
+	return IFD_NOT_SUPPORTED;
 }
 
 RESPONSECODE
 IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 			  UCHAR PTS1, UCHAR PTS2, UCHAR PTS3)
 {
-	//TODO
-	Log2(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun %d)", Lun);
+	// not yet supported
+	// Log2(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun %d)", Lun);
+	return IFD_NOT_SUPPORTED;
 }
 
 RESPONSECODE IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
@@ -300,3 +303,4 @@ void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 
 	Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n%s\n", respApdu);
 }
+
