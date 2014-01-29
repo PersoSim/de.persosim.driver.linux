@@ -16,9 +16,6 @@
 #include <errno.h>
 #include <signal.h>
 
-#define TRUE	0
-#define FALSE	1
-
 #define PSIM_CMD_POWEROFF	"FF000000"
 #define PSIM_CMD_POWERON	"FF010000"
 #define PSIM_CMD_PING		"FF900000"
@@ -85,12 +82,13 @@ RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
 	return IFD_SUCCESS;
 }
 
+
 RESPONSECODE IFDHCloseChannel(DWORD Lun)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun %d)", Lun);
 	
 	// powerOff the simulator (also closes connection if needed)
-	int AtrLength = MAX_ATR_SIZE;
+	DWORD AtrLength = MAX_ATR_SIZE;
 	IFDHPowerICC(Lun, IFD_POWER_DOWN, intBuffer, &AtrLength);
 
 	return IFD_SUCCESS;
@@ -386,4 +384,3 @@ RESPONSECODE PSIMCloseConnection()
 
 	return IFD_SUCCESS;
 }
-
