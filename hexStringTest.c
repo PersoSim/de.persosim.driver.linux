@@ -1,5 +1,15 @@
 #include "hexString.h"
 #include <string.h>
+#include <stdio.h>
+
+
+int testHexChar2Int();
+int testHexNibble2Char();
+int testHexByte2Chars();
+int testHexByteArray2String();
+int testHexString2CharArray();
+int assertMatchInt(int, int, char*);
+int assertMatchCharArray(char*, char*, int, char*);
 
 int main ()
 {
