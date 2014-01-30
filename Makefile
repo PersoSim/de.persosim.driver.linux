@@ -22,7 +22,7 @@ $(DEPENDFILE): *.c
 
 
 clean:
-	rm -f *.o $(LIBNAME) $(DEPENDFILE) hexStringTest
+	rm -f *.o $(LIBNAME) $(DEPENDFILE) *Test
 
 install: libPersoSim.so
 	sudo cp reader.conf /etc/reader.conf.d/persoSim
