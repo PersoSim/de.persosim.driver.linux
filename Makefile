@@ -8,15 +8,15 @@ DEPENDFILE = .depend
 
 
 OBJ     := $(filter-out %test.o %Test.o, $(patsubst %.c,%.o,$(wildcard *.c)))
-LIBNAME := libPersoSim.so
+LIBNAME := ifdhPersoSim.so
 PREFIX   = /usr/local/pcsc
 
 DEFS     = -DPCSC_DEBUG=1 #-DATR_DEBUG=1
 
 all: $(LIBNAME)
 
-# nerate and pull in dependency info
-$(DEPENDFILE): *.c
+# gennerate and pull in dependency info
+$(DEPENDFILE): *.c *.h
 	$(CC) -MM $+ > $(DEPENDFILE)
 -include $(DEPENDFILE)
 
@@ -24,13 +24,13 @@ $(DEPENDFILE): *.c
 clean:
 	rm -f *.o $(LIBNAME) $(DEPENDFILE) *Test
 
-install: libPersoSim.so
+install: $(LIBNAME)
 	sudo cp reader.conf /etc/reader.conf.d/persoSim
-	sudo cp libPersoSim.so /usr/lib/pcsc/drivers/serial/
+	sudo cp $(LIBNAME) /usr/lib/pcsc/drivers/serial/
 
 uninstall: 
 	sudo rm -f /etc/reader.conf.d/persoSim
-	sudo rm -f /usr/lib/pcsc/drivers/serial/libPersoSim.so
+	sudo rm -f /usr/lib/pcsc/drivers/serial/$(LIBNAME)
 
 test: hexStringTest
 	./hexStringTest
