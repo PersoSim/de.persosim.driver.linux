@@ -1,5 +1,6 @@
 /* hexString.h */
-//TODO define MAKRO to only include this once
+#ifndef HEXSTRING_H
+#define HEXSTRING_H
 
 extern int HexChar2Int(char);
 
@@ -11,3 +12,4 @@ extern int HexByteArray2String(const char*, int, char*);
 
 extern int HexString2CharArray(const char*, char*);
 
+#endif

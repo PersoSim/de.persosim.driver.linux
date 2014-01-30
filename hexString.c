@@ -1,6 +1,8 @@
 /* hexString.c */
 #include <string.h>
 
+#include "hexString.h"
+
 #define MASK_NIBBLE 0x0F
 
 int HexChar2Int(char input)
