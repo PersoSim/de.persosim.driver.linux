@@ -5,8 +5,11 @@ Stand: 28.01.2014
 
 Systemvorraussetzungen
 Bisher getestet unter Ubuntu 12.04 LTS
-Zum compilieren ist das Paket libpcsclite-dev erforderlich
-Dies kann per "sudo apt-get install libpcsclite-dev" installiert werden.
+Benötigt werden zusätzlich zur Standardinstallation die folgenden Pakete
+pcscd
+pcsc-tools
+libpcsclite-dev
+Diese können per "sudo apt-get install pcscd pcsc-tools libpcsclite-dev" installiert werden.
 
 
 
