@@ -1,0 +1,16 @@
+PersoSim - Der Open Source Simulator für den elektronischen Personalausweis
+
+Stand: 28.01.2014
+
+
+Systemvorraussetzungen
+Bisher getestet unter Ubuntu 12.04 LTS
+Zum compilieren ist das Paket libpcsclite-dev erforderlich
+Dies kann per "sudo apt-get install libpcsclite-dev" installiert werden.
+
+
+
+*Installation*
+Das Linux-Treiberpaket liegt im Moment lediglich im Quellcode vor und kann mit der weit verbreiteten Kommandokombination "make && make install" installiert werden.
+
+Solange kein Simulator läuft meldet der Treiber "Keine Karte im Leser". Sobald ein Simulator am konfigurierten Port verfügbar ist ist dieser über den TReiber nutzbar. 
