@@ -1,27 +1,12 @@
-#include <pcsclite.h>
-#include <ifdhandler.h>
-#include <debuglog.h>
 #include <string.h>
+
+#include <debuglog.h>
+#include <ifdhandler.h>
+#include <pcsclite.h>
+
 #include "hexString.h"
-#include <sys/socket.h>
+#include "persoSimConnect.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <signal.h>
-
-#define PSIM_CMD_POWEROFF	"FF000000"
-#define PSIM_CMD_POWERON	"FF010000"
-#define PSIM_CMD_PING		"FF900000"
-#define PSIM_CMD_SWITCHOFF	"FFEE0000"
-#define PSIM_CMD_RESET		"FFFF0000"
-#define PSIM_CMD_LENGTH		9
 
 //BUFFERSIZE is maximum of extended length APDU plus 2 bytes for status word
 #define BUFFERSIZE	0x10001
@@ -31,18 +16,12 @@ char intBuffer[BUFFERSIZE];
 char Hostname[DEVICENAMESIZE];
 char Port[DEVICENAMESIZE];
 
-//TODO extract to persoSim.c resp. persoSim.h
-int simSocket = -1;
-int simConnected = 0;
-int PSIMIsConnected();
-RESPONSECODE PSIMOpenConnection();
-RESPONSECODE PSIMCloseConnection();
-void exchangeApdu(const char*, char*, int);
-
 int CachedAtrLength = 0;
 char CachedAtr[MAX_ATR_SIZE];
 
-RESPONSECODE IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
+
+RESPONSECODE
+IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun %d, DeviceName %s)",
 	     Lun, DeviceName);
@@ -75,15 +54,26 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	return IFD_NOT_SUPPORTED;
 }
 
-RESPONSECODE IFDHCreateChannel(DWORD Lun, DWORD Channel)
+RESPONSECODE
+IFDHCreateChannel(DWORD Lun, DWORD Channel)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun %d, Channel 0x%x)", Lun,
 	     Channel);
+	// try to resolve address
+	int rv = PSIMOpenConnection(Hostname, Port);
+	switch (rv) {
+	case PSIM_CAN_NOT_RESOLVE:
+		return IFD_NO_SUCH_DEVICE;
+	case PSIM_SUCCESS:
+		PSIMCloseConnection();		
+	}
+
 	return IFD_SUCCESS;
 }
 
 
-RESPONSECODE IFDHCloseChannel(DWORD Lun)
+RESPONSECODE
+IFDHCloseChannel(DWORD Lun)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun %d)", Lun);
 	
@@ -150,7 +140,8 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 	return IFD_NOT_SUPPORTED;
 }
 
-RESPONSECODE IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
+RESPONSECODE
+IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
 	char cmdApdu[PSIM_CMD_LENGTH];
@@ -175,7 +166,7 @@ RESPONSECODE IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 		if (!PSIMIsConnected())
 		{
 			// open connection
-			PSIMOpenConnection();
+			PSIMOpenConnection(Hostname, Port);
 		}
 		// send PowerOn to simulator
 		strcpy(cmdApdu, PSIM_CMD_POWERON);
@@ -228,7 +219,8 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 	return IFD_SUCCESS; 
 }
 
-RESPONSECODE IFDHICCPresence(DWORD Lun)
+RESPONSECODE
+IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
 	
@@ -236,8 +228,8 @@ RESPONSECODE IFDHICCPresence(DWORD Lun)
 	int closeConnection = 0; //true if connection needs to be closed after test
 	if (!PSIMIsConnected())
 	{
-		switch (PSIMOpenConnection()) {
-		case IFD_SUCCESS:
+		switch (PSIMOpenConnection(Hostname, Port)) {
+		case PSIM_SUCCESS:
 			closeConnection = 1; //make sure connection is closed after the ping
 			break;
 		default:
@@ -266,121 +258,3 @@ RESPONSECODE IFDHICCPresence(DWORD Lun)
 	}
 }
 
-/*
- * Expects cmdApdu to contain a HexString and respApdu to be large enough to hold the complete response HexString both including \0 termination
- */
-void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
-{
-	//Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n%s\n", cmdApdu);
-
-	//ignore SIGPIPE for this function
-	struct sigaction ignAct, oldAct;
-	memset(&ignAct, '\0', sizeof(ignAct));
-	ignAct.sa_handler = SIG_IGN;
-	sigaction(SIGPIPE, &ignAct, &oldAct);
-
-	// transmit cmdApdu (ignoring errors, missing response wil be handeld later on)
-	send(simSocket, cmdApdu, strlen(cmdApdu), 0); 
-	send(simSocket, "\n", 1, 0); 
-
-	// receive response
-	int len = 0;
-	do {
-		len += recv(simSocket, respApdu + len, respApduSize - len, 0);
-		// if len == 0 after the first loop the connection was closed
-	} while (len > 0 && len < respApduSize && respApdu[len-1] != '\n');
-
-	if (len > 4) {
-		respApdu[len-1] = '\0';
-	}
-	else
-	{
-		// no valid response was received (did not even contain SW)
-		// include fake SW
-		strcpy(respApdu, "6FFF");
-	}
-
-	//Log2(PCSC_LOG_DEBUG, "exchangeApdu response APDU\n%s\n", respApdu);
-	
-	// reset handler for SIGPIPE
-	sigaction(SIGPIPE, &oldAct, NULL);
-}
-
-int PSIMIsConnected()
-{
-	return simConnected;
-}
-
-RESPONSECODE PSIMOpenConnection()
-{
-
-	// find the remote address (candidates)
-	struct addrinfo hints, *servinfo, *p;
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	if (getaddrinfo(Hostname, Port, &hints, &servinfo) != 0) {
-		Log3(PCSC_LOG_ERROR, "Unable to resolve %s:%d", Hostname, Port);
-		return IFD_NO_SUCH_DEVICE;
-	}
-
-	// loop through all the results and connect to the first that works
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		// allocate socket
-		if ((simSocket = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			// socket could not be allocated, try next one
-			continue;
-		}
-
-		// connect to server
-		if (connect(simSocket, p->ai_addr, p->ai_addrlen) == -1) {
-			// connection failed, close socket and try next one
-			close(simSocket);
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		freeaddrinfo(servinfo);
-		Log3(PCSC_LOG_ERROR, "Unable to connect to %s:%s", Hostname, Port);
-		return IFD_COMMUNICATION_ERROR;
-	}
-	//free all found addresses
-	freeaddrinfo(servinfo);
-
-	//store connection state
-	simConnected = 1;
-
-	// powerOn the simulator (in order to keep the connection alive)
-//	int AtrLength = MAX_ATR_SIZE;
-//	IFDHPowerICC(Lun, IFD_POWER_UP, intBuffer, &AtrLength);
-
-	
-	Log3(PCSC_LOG_DEBUG, "Socket connected to %s:%s", Hostname,
-	     Port);
-	return IFD_SUCCESS;
-}
-
-RESPONSECODE PSIMCloseConnection()
-{
-	//close socket connection
-	if (simSocket >= 0)
-	{
-		if (close(simSocket) != 0)
-		{
-			Log2(PCSC_LOG_DEBUG, "Closing socket failed with errno %d", errno);
-			perror("Close socket perror ");
-			perror(NULL);
-			return IFD_COMMUNICATION_ERROR;
-		}
-	}
-
-	//store connection state
-	simConnected = 0;
-	Log1(PCSC_LOG_DEBUG, "Socket disconnected");
-
-	return IFD_SUCCESS;
-}
