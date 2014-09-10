@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 
 #include <debuglog.h>
@@ -59,16 +60,12 @@ IFDHCreateChannel(DWORD Lun, DWORD Channel)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun %d, Channel 0x%x)", Lun,
 	     Channel);
-	// try to resolve address
-	int rv = PSIMOpenConnection(Hostname, Port);
-	switch (rv) {
-	case PSIM_CAN_NOT_RESOLVE:
-		return IFD_NO_SUCH_DEVICE;
-	case PSIM_SUCCESS:
-		PSIMCloseConnection();		
-	}
 
-	return IFD_SUCCESS;
+	// start the handshake server
+	int portNo = (int) strtol(Port, (char **)NULL, 10);
+	int rv = PSIMStartHandshakeServer(portNo);
+
+	return (rv == PSIM_SUCCESS) ? IFD_SUCCESS : IFD_COMMUNICATION_ERROR;
 }
 
 

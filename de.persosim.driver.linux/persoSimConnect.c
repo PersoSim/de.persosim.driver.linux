@@ -12,11 +12,99 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+int simConnected = 0; //TODO remove this variable
+// socket fd for the connection to the client
+int clientSocket = -1;
 
-// connection state and used socket
-int simConnected = 0;
-int simSocket = -1;
+int PSIMStartHandshakeServer(int port)
+{
+	//allocate handshake socket
+	int handshakeSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (handshakeSocket < 0)
+	{
+		Log2(PCSC_LOG_ERROR, "Unable to allocate server socket for handshake (port %d)", port);
+		return PSIM_COMMUNICATION_ERROR;
+	}
 
+	struct sockaddr_in serverAddr;
+	memset(&serverAddr, 0, sizeof(serverAddr));
+	serverAddr.sin_family = AF_INET;
+	serverAddr.sin_addr.s_addr = INADDR_ANY;
+	serverAddr.sin_port = htons(port);
+
+	// bind handshake socket
+	if (bind(handshakeSocket, (struct sockaddr *) &serverAddr,
+			sizeof(serverAddr)) < 0)
+	{
+		Log2(PCSC_LOG_ERROR,
+				"Unable to bind server socket for handshake to port %d",
+				port);
+		return PSIM_COMMUNICATION_ERROR;
+	}
+
+	if (listen(handshakeSocket, 5) < 0)
+	{
+		if (errno == EADDRINUSE) {
+			Log1(PCSC_LOG_ERROR, "Handshake socket already in use");
+		} else {
+			Log1(PCSC_LOG_ERROR, "Unable to listen on handshake socket");
+		}
+		return PSIM_COMMUNICATION_ERROR;
+	}
+
+	//accept client connection
+	clientSocket = accept(handshakeSocket, NULL, NULL);
+	if (clientSocket < 0) {
+		Log1(PCSC_LOG_ERROR, "Handshake socket failed to accept client connection");
+		return PSIM_COMMUNICATION_ERROR;
+	}
+
+
+	//hardcoded handshake
+	int msgBufferSize = 256;
+	char msgBuffer[msgBufferSize];
+	int len = 0;
+	do {
+		len += recv(clientSocket, msgBuffer + len, msgBufferSize - len, 0);
+		// if len == 0 after the first loop the connection was closed
+	} while (len > 0 && len < msgBufferSize && msgBuffer[len-1] != '\n');
+
+	if (len > 0) {
+		msgBuffer[len-1] = '\0';
+	} else {
+		Log1(PCSC_LOG_ERROR, "Client did not initiate a valid handshake");
+		return PSIM_COMMUNICATION_ERROR;
+	}
+	Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
+
+	if (send(clientSocket, "HELLO_IFD|LUN:00\n",17, MSG_NOSIGNAL) < 0) {
+		Log1(PCSC_LOG_ERROR, "Could not send response to handshake initialization");
+		return PSIM_COMMUNICATION_ERROR;
+	}
+
+	len = 0;
+	do {
+		len += recv(clientSocket, msgBuffer + len, msgBufferSize - len, 0);
+		// if len == 0 after the first loop the connection was closed
+	} while (len > 0 && len < msgBufferSize && msgBuffer[len-1] != '\n');
+
+	if (len > 0) {
+		msgBuffer[len-1] = '\0';
+	} else {
+		Log1(PCSC_LOG_ERROR, "Client did not correctly finish handshake");
+		return PSIM_COMMUNICATION_ERROR;
+	}
+	Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
+
+	if (send(clientSocket, "DONE_IFD\n",9, MSG_NOSIGNAL) < 0) {
+		Log1(PCSC_LOG_ERROR, "Could not send finish handshake response");
+		return PSIM_COMMUNICATION_ERROR;
+	}
+
+	return PSIM_SUCCESS;
+}
+
+//TODO remove old code below
 int PSIMOpenConnection(const char* hostname, const char* port)
 {
 	// find the remote address (candidates)
@@ -32,16 +120,16 @@ int PSIMOpenConnection(const char* hostname, const char* port)
 	// loop through all the results and connect to the first that works
 	for(p = servinfo; p != NULL; p = p->ai_next) {
 		// allocate socket
-		if ((simSocket = socket(p->ai_family, p->ai_socktype,
+		if ((clientSocket = socket(p->ai_family, p->ai_socktype,
 				p->ai_protocol)) == -1) {
 			// socket could not be allocated, try next one
 			continue;
 		}
 
 		// connect to server
-		if (connect(simSocket, p->ai_addr, p->ai_addrlen) == -1) {
+		if (connect(clientSocket, p->ai_addr, p->ai_addrlen) == -1) {
 			// connection failed, close socket and try next one
-			close(simSocket);
+			close(clientSocket);
 			continue;
 		}
 
@@ -66,9 +154,9 @@ int PSIMOpenConnection(const char* hostname, const char* port)
 int PSIMCloseConnection()
 {
 	//close socket connection
-	if (simSocket >= 0)
+	if (clientSocket >= 0)
 	{
-		if (close(simSocket) != 0)
+		if (close(clientSocket) != 0)
 		{
 			Log2(PCSC_LOG_ERROR, "Closing socket failed with errno %d", errno);
 			return PSIM_COMMUNICATION_ERROR;
@@ -77,7 +165,7 @@ int PSIMCloseConnection()
 
 	//store connection state
 	simConnected = 0;
-	simSocket = -1;
+	clientSocket = -1;
 	Log1(PCSC_LOG_DEBUG, "Socket disconnected");
 
 	return PSIM_SUCCESS;
@@ -97,13 +185,13 @@ void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 	sigaction(SIGPIPE, &ignAct, &oldAct);
 
 	// transmit cmdApdu (ignoring errors, missing response wil be handeld later on)
-	send(simSocket, cmdApdu, strlen(cmdApdu), 0); 
-	send(simSocket, "\n", 1, 0); 
+	send(clientSocket, cmdApdu, strlen(cmdApdu), 0); 
+	send(clientSocket, "\n", 1, 0); 
 
 	// receive response
 	int len = 0;
 	do {
-		len += recv(simSocket, respApdu + len, respApduSize - len, 0);
+		len += recv(clientSocket, respApdu + len, respApduSize - len, 0);
 		// if len == 0 after the first loop the connection was closed
 	} while (len > 0 && len < respApduSize && respApdu[len-1] != '\n');
 
