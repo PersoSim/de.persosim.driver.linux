@@ -13,13 +13,12 @@ PREFIX   = /usr/local/pcsc
 
 DEFS     = -DPCSC_DEBUG=1 #-DATR_DEBUG=1
 
-all: $(LIBNAME)
+all: $(LIBNAME) tests
 
 # gennerate and pull in dependency info
 $(DEPENDFILE): *.c *.h
 	$(CC) -MM $+ > $(DEPENDFILE)
 -include $(DEPENDFILE)
-
 
 clean:
 	rm -f *.o $(LIBNAME) $(DEPENDFILE) *Test
@@ -32,7 +31,9 @@ uninstall:
 	sudo rm -f /etc/reader.conf.d/persoSim
 	sudo rm -f /usr/lib/pcsc/drivers/serial/$(LIBNAME)
 
-test: hexStringTest
+tests: hexStringTest
+
+runtests: tests
 	./hexStringTest
 
 %.so: $(OBJ)
