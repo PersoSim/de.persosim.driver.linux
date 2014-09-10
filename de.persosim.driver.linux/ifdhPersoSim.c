@@ -121,6 +121,7 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 		return IFD_ERROR_TAG;
 	}
 
+	return IFD_SUCCESS;
 }
 
 RESPONSECODE
