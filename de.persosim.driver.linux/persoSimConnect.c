@@ -12,7 +12,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-int simConnected = 0; //TODO remove this variable
 // socket fd for the connection to the client
 int clientSocket = -1;
 
@@ -144,9 +143,6 @@ int PSIMOpenConnection(const char* hostname, const char* port)
 	//free all found addresses
 	freeaddrinfo(servinfo);
 
-	//store connection state
-	simConnected = 1;
-
 	Log3(PCSC_LOG_DEBUG, "Socket connected to %s:%s", hostname, port);
 	return PSIM_SUCCESS;
 }
@@ -164,7 +160,6 @@ int PSIMCloseConnection()
 	}
 
 	//store connection state
-	simConnected = 0;
 	clientSocket = -1;
 	Log1(PCSC_LOG_DEBUG, "Socket disconnected");
 
@@ -184,7 +179,7 @@ void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 	ignAct.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &ignAct, &oldAct);
 
-	// transmit cmdApdu (ignoring errors, missing response wil be handeld later on)
+	// transmit cmdApdu (ignoring errors, missing response will be handled later on)
 	send(clientSocket, cmdApdu, strlen(cmdApdu), 0); 
 	send(clientSocket, "\n", 1, 0); 
 
@@ -213,5 +208,5 @@ void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 
 int PSIMIsConnected()
 {
-	return simConnected;
+	return clientSocket >= 0;
 }
