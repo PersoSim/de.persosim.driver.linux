@@ -145,53 +145,7 @@ RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
-	char cmdApdu[PSIM_CMD_LENGTH];
-	switch (Action) {
-	case IFD_POWER_DOWN:
-		if (PSIMIsConnected())
-		{
-			// send PowerOff to simulator
-			strcpy(cmdApdu, PSIM_CMD_POWEROFF);
-//			exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
-
-			// close connection
-			PSIMCloseConnection();
-		}
-		
-		// unset cached atr
-		CachedAtrLength = 0;
-		memset(CachedAtr, 0, MAX_ATR_SIZE);
-		
-		break;
-	case IFD_POWER_UP:
-		if (!PSIMIsConnected())
-		{
-			// open connection
-			//PSIMOpenConnection(Hostname, Port);
-		}
-		// send PowerOn to simulator
-		strcpy(cmdApdu, PSIM_CMD_POWERON);
-		exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
-
-		// cache ATR from response
-		CachedAtrLength = HexString2CharArray(intBuffer, CachedAtr);
-		
-		break;
-	case IFD_RESET:
-		// send Reset to simulator
-		strcpy(cmdApdu, PSIM_CMD_RESET);
-		exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
-
-		// cache ATR from response
-		CachedAtrLength = HexString2CharArray(intBuffer, CachedAtr);
-		break;
-	default:
-		Log3(PCSC_LOG_ERROR, "IFDHPowerICC (Lun %d) - unsupported Action 0x%X", Lun, Action);
-		return IFD_NOT_SUPPORTED;
-	}
-
-	//return the ATR and its size (as cached above)
-	return IFDHGetCapabilities(Lun, TAG_IFD_ATR, AtrLength, Atr);
+	return IFD_NOT_SUPPORTED;
 }
 
 RESPONSECODE
@@ -225,6 +179,19 @@ IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
 	
-	return PSIMIsIccPresent(Lun);
+	//prepare params and response
+	char params[1];
+	params[0] = '\0';
+	char respBufferSize = 9;
+	char response[respBufferSize];
+
+	//forward pcsc function to client
+	int rv = exchangePcscFunction(PSIM_MSG_FUNCTION_IS_ICC_PRESENT, Lun, PSIM_MSG_EMPTY_PARAMS, response, respBufferSize);
+	if (rv != PSIM_SUCCESS) {
+		return IFD_ICC_NOT_PRESENT;
+	}
+
+	//return the response code
+	return extractPcscResponseCode(response);
 }
 

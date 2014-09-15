@@ -60,6 +60,7 @@ int receive(DWORD lun, char* response, int respLength) {
 		Log1(PCSC_LOG_ERROR, "Failure during receive from client (no response received)");
 		return PSIM_COMMUNICATION_ERROR;
 	}
+	Log2(PCSC_LOG_DEBUG, "Received from client: %s\n", response);
 
 	return PSIM_SUCCESS;
 }
@@ -181,23 +182,6 @@ int PSIMStartHandshakeServer(int port)
 	//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
 
 	return PSIM_SUCCESS;
-}
-
-int PSIMIsIccPresent(DWORD lun) {
-	//prepare params and response
-	char params[1];
-	params[0] = '\0';
-	char respBufferSize = 9;
-	char response[respBufferSize];
-
-	//forward pcsc function to client
-	int rv = exchangePcscFunction(PSIM_MSG_FUNCTION_IS_ICC_PRESENT, lun, PSIM_MSG_EMPTY_PARAMS, response, respBufferSize);
-	if (rv != PSIM_SUCCESS) {
-		return IFD_ICC_NOT_PRESENT;
-	}
-
-	//return the response code
-	return extractPcscResponseCode(response);
 }
 
 //TODO remove old code below

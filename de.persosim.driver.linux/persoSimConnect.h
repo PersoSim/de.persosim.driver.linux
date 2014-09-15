@@ -2,6 +2,7 @@
 #define PERSOSIMCONNECT_H
 
 #include <wintypes.h>
+#include <ifdhandler.h>
 
 //return values
 #define PSIM_SUCCESS				0
@@ -47,11 +48,24 @@
 int PSIMStartHandshakeServer(int port);
 
 /**
- * Checks for presence of a simulated card.
+ * Transmit a PCSC function call as properly encoded message to the PersoSim driver connector.
  *
- * Returns either PSIM_SUCCESS or PSIM_NO_CARD_PRESENT. Any error case (e.g. disconnected sockets) is returned as PSIM_NO_CARD_PRESENT
+ * @param[in] function is one of PCSIM_MSG_FUNCTION
+ * @param[in] lun is encoded within the message and also also used to identify the correct socket/client to transmit the message to
+ * @param[in] params HexString encoding of the defined parameters to the specific PCSC function as defined in the interface description.
+ * 	 Multiple parameters should be separated by PSIM_MSG_DIVIDER. The calling code needs to ensure the correct structure of this parameter (including \0 termination)
+ * @param[out] response allocated buffer the response should be written into.
+ *   After the call finishes successfully this buffer will hold the received response according to the driver connector interface description.
+ * @param[in] respLength size of the allocated response buffer.
+ *   Its the responsibility of the calling code to ensure that the response buffer is large enough to hold
+ * @param[in,out]
+ *
+ * Returns PSIM_SUCCESS if the messages were exchanged successfully or PSIM_COMMUNICATION_ERROR in any other case.
  */
-int PSIMIsIccPresent(DWORD lun);
+int exchangePcscFunction(const char*, DWORD, const char*, char *, int);
+
+//TODO document this method
+RESPONSECODE extractPcscResponseCode(const char*);
 
 //TODO remove old definitions below
 //Special command APDUs supported by PersoSim
