@@ -104,7 +104,8 @@ int HexString2Int(const char* hexString)
 	for (i=0; i < hexStringLength; i++)
 	{
 		retVal = retVal << 4;
-		retVal |= (HexChar2Int(hexString[i]) & 0x0FF);
+		retVal |= (HexChar2Int(hexString[i]) & 0x0F);
+
 	}
 
 	return retVal;
