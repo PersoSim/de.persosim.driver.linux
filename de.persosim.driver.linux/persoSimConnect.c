@@ -48,14 +48,14 @@ int receive(DWORD lun, char* response, int respLength) {
 		return PSIM_NO_CONNECTION;
 	}
 
-	int len = 0;
+	int offset = 0;
 	do {
-		len += recv(clientSocket, response + len, respLength - len, 0);
+		offset += recv(clientSocket, response + offset, respLength - offset, 0);
 		// if len == 0 after the first loop the connection was closed
-	} while (len > 0 && len < respLength && response[len-1] != '\n');
+	} while (offset > 0 && offset < respLength && response[offset-1] != '\n');
 
-	if (len > 0) {
-		response[len-1] = '\0';
+	if (offset > 0) {
+		response[offset-1] = '\0';
 	} else {
 		Log1(PCSC_LOG_ERROR, "Failure during receive from client (no response received)");
 		return PSIM_COMMUNICATION_ERROR;
@@ -72,7 +72,7 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 	const int paramLength = strlen(params);
 	const int bufferLength = (paramLength) ?  minLength + 1 + paramLength : minLength;
 	char msgBuffer[bufferLength];
-	strcpy(msgBuffer, PSIM_MSG_FUNCTION_IS_ICC_PRESENT);
+	strcpy(msgBuffer, function);
 	strcat(msgBuffer, PSIM_MSG_DIVIDER);
 	HexInt2String(lun, &msgBuffer[3]);
 	msgBuffer[bufferLength-1] = '\0';
@@ -83,16 +83,16 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 
 	Log2(PCSC_LOG_DEBUG, "PSIM transmit PCSC function: %s", msgBuffer);
 
-	int retVal = transmit(lun, msgBuffer);
-	if (retVal != PSIM_SUCCESS) {
+	int rv = transmit(lun, msgBuffer);
+	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not transmit PCSC function to PersoSim Connector");
-		return retVal;
+		return rv;
 	}
 
-	receive(lun, response, respLength);
-	if (retVal != PSIM_SUCCESS) {
+	rv = receive(lun, response, respLength);
+	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not receive PCSC response from PersoSim Connector");
-		return retVal;
+		return rv;
 	}
 
 	return PSIM_SUCCESS;
@@ -102,6 +102,7 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 RESPONSECODE extractPcscResponseCode(const char* response) {
 	char responseCodeString[9];
 	strncpy(responseCodeString, response, 8);
+	responseCodeString[8] = '\0';
 
 	return HexString2Int(responseCodeString);
 }

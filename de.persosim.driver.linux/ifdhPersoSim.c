@@ -145,7 +145,29 @@ RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
-	return IFD_NOT_SUPPORTED;
+	//prepare params and response
+	char params[14];
+	HexInt2String(Action,params);
+	strcat(params, PSIM_MSG_DIVIDER);
+	HexInt2String(*AtrLength, &params[9]);
+	char respBufferSize = 74;
+	char response[respBufferSize];
+
+	//forward pcsc function to client
+	int rv = exchangePcscFunction(PSIM_MSG_FUNCTION_POWER_ICC, Lun, params, response, respBufferSize);
+	if (rv != PSIM_SUCCESS) {
+		return IFD_COMMUNICATION_ERROR;
+	}
+
+	//extract ATR
+	if (strlen(response) > 9) {
+		*AtrLength = HexString2CharArray(&response[9], Atr);
+	} else {
+		*AtrLength = 0;
+	}
+
+	//return the response code
+	return extractPcscResponseCode(response);
 }
 
 RESPONSECODE
@@ -155,23 +177,31 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun %d)", Lun);
 	
-	//convert APDU tho HexString
-	int cmdApduSize = TxLength * 2 + 1; // 2 chars per byte plus \0
-	char cmdApdu[cmdApduSize];
-	HexByteArray2String(TxBuffer, TxLength, cmdApdu);
+	//prepare params buffer
+	char params[TxLength * 2 + 10];
+	HexByteArray2String(TxBuffer, TxLength, params);
+	strcat(params, PSIM_MSG_DIVIDER);
+	HexInt2String(*RxLength, &params[TxLength * 2 + 1]);
 
-	//prepare buffer for response APDU
-	int respApduSize = *RxLength * 2 + 1; // 2 chars per byte plus \0
-	char respApdu[respApduSize];
-	
-	//perform the exchange
-	exchangeApdu(cmdApdu, respApdu, respApduSize);
-	
+	//prepare response buffer
+	long respBufferSize = *RxLength * 2 + 10;
+	char response[respBufferSize];
 
-	//copy response to RxBuffer
-	*RxLength = HexString2CharArray(respApdu, RxBuffer);
+	//forward pcsc function to client
+	int rv = exchangePcscFunction(PSIM_MSG_FUNCTION_TRANSMIT_TO_ICC, Lun, params, response, respBufferSize);
+	if (rv != PSIM_SUCCESS) {
+		return IFD_COMMUNICATION_ERROR;
+	}
 
-	return IFD_SUCCESS; 
+	//extract response
+	if (strlen(response) > 9) {
+		*RxLength = HexString2CharArray(&response[9], RxBuffer);
+	} else {
+		*RxLength = 0;
+	}
+
+	//return the response code
+	return extractPcscResponseCode(response);
 }
 
 RESPONSECODE
@@ -179,9 +209,7 @@ IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
 	
-	//prepare params and response
-	char params[1];
-	params[0] = '\0';
+	//prepare buffer for response
 	char respBufferSize = 9;
 	char response[respBufferSize];
 
