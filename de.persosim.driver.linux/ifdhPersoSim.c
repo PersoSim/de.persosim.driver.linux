@@ -38,7 +38,7 @@ IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 	else
 	{
 		strcpy(Hostname, "localhost");
-		strcpy(Port, "9876");
+		strcpy(Port, "5678");
 		Log3(PCSC_LOG_INFO, "DEVICENAME malformed, using default %s:%s instead", Hostname, Port);
 	} 
 	
@@ -50,6 +50,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	    TxBuffer, DWORD TxLength, PUCHAR RxBuffer, DWORD RxLength,
 	    LPDWORD pdwBytesReturned)
 {
+	//XXX forward this call to driver connector
 	// not yet supported, will be needed to implement standard reader functionality
 	// Log2(PCSC_LOG_DEBUG, "IFDHControl (Lun %d)", Lun);
 	return IFD_NOT_SUPPORTED;
@@ -77,6 +78,8 @@ IFDHCloseChannel(DWORD Lun)
 	// powerOff the simulator (also closes connection if needed)
 	DWORD AtrLength = MAX_ATR_SIZE;
 	IFDHPowerICC(Lun, IFD_POWER_DOWN, intBuffer, &AtrLength);
+
+	//TODO kill handshake server after all channels are closed?
 
 	return IFD_SUCCESS;
 }
@@ -164,7 +167,7 @@ IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 		if (!PSIMIsConnected())
 		{
 			// open connection
-			PSIMOpenConnection(Hostname, Port);
+			//PSIMOpenConnection(Hostname, Port);
 		}
 		// send PowerOn to simulator
 		strcpy(cmdApdu, PSIM_CMD_POWERON);
@@ -222,37 +225,6 @@ IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
 	
-	// ensure that a connection exists
-	int closeConnection = 0; //true if connection needs to be closed after test
-	if (!PSIMIsConnected())
-	{
-		switch (PSIMOpenConnection(Hostname, Port)) {
-		case PSIM_SUCCESS:
-			closeConnection = 1; //make sure connection is closed after the ping
-			break;
-		default:
-			return IFD_ICC_NOT_PRESENT;
-		}
-	}
-
-	// send PresencePing to simulator
-	char cmdApdu[PSIM_CMD_LENGTH];
-	strcpy(cmdApdu, PSIM_CMD_PING);
-	exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
-
-	// ensure that a connection established by this method is also closed here
-	if (closeConnection)
-	{
-		PSIMCloseConnection();
-	}
-
-	if (strcmp(intBuffer, "9000") == 0)
-	{
-		return IFD_SUCCESS; 
-	}
-	else
-	{
-		return IFD_ICC_NOT_PRESENT;
-	}
+	return PSIMIsIccPresent(Lun);
 }
 
