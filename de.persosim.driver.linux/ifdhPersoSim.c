@@ -152,7 +152,7 @@ IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 		{
 			// send PowerOff to simulator
 			strcpy(cmdApdu, PSIM_CMD_POWEROFF);
-			exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
+//			exchangeApdu(cmdApdu, intBuffer, BUFFERSIZE);
 
 			// close connection
 			PSIMCloseConnection();

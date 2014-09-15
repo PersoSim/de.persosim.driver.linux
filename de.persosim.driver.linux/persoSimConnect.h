@@ -1,6 +1,8 @@
 #ifndef PERSOSIMCONNECT_H
 #define PERSOSIMCONNECT_H
 
+#include <wintypes.h>
+
 //return values
 #define PSIM_SUCCESS				0
 #define PSIM_NO_CONNECTION			1
@@ -11,21 +13,30 @@
 #define PSIM_MSG_EMPTY_PARAMS ""
 
 //PCSC function identifiers used in connector messages
-//#define PSIM_FUNCTION_DEVICE_CONTROL = 0;
-//#define PSIM_FUNCTION_DEVICE_LIST_DEVICES = 1;
-//#define PSIM_FUNCTION_GET_CAPABILITIES = 2;
-//#define PSIM_FUNCTION_SET_CAPABILITIES = 3;
-//#define PSIM_FUNCTION_POWER_ICC = 4;
-//#define PSIM_FUNCTION_TRANSMIT_TO_ICC = 5;
-#define PSIM_MSG_FUNCTION_IS_ICC_PRESENT "06"
-//#define PSIM_FUNCTION_IS_ICC_ABSENT = 7;
-//#define PSIM_FUNCTION_SWALLOW_ICC = 8;
-//#define PSIM_FUNCTION_SET_PROTOCOL_PARAMETERS = 9;
-//#define PSIM_FUNCTION_LIST_INTERFACES = 10;
-//#define PSIM_FUNCTION_LIST_CONTEXTS = 11;
-//#define PSIM_FUNCTION_IS_CONTEXT_SUPPORTED = 12;
-//#define PSIM_FUNCTION_GET_IFDSP = 13;
-//#define PSIM_FUNCTION_EJECT_ICC = 14;
+
+#define PSIM_MSG_HANDSHAKE_ICC_HELLO "01"
+#define PSIM_MSG_HANDSHAKE_ICC_STOP  "02"
+#define PSIM_MSG_HANDSHAKE_ICC_ERROR "03"
+#define PSIM_MSG_HANDSHAKE_ICC_DONE  "04"
+#define PSIM_MSG_HANDSHAKE_IFD_HELLO "05"
+#define PSIM_MSG_HANDSHAKE_IFD_ERROR "06"
+
+
+#define PSIM_MSG_FUNCTION_DEVICE_CONTROL          "10"
+#define PSIM_MSG_FUNCTION_DEVICE_LIST_DEVICES     "11"
+#define PSIM_MSG_FUNCTION_GET_CAPABILITIES        "12"
+#define PSIM_MSG_FUNCTION_SET_CAPABILITIES        "13"
+#define PSIM_MSG_FUNCTION_POWER_ICC               "14"
+#define PSIM_MSG_FUNCTION_TRANSMIT_TO_ICC         "15"
+#define PSIM_MSG_FUNCTION_IS_ICC_PRESENT          "16"
+#define PSIM_MSG_FUNCTION_IS_ICC_ABSENT           "17"
+#define PSIM_MSG_FUNCTION_SWALLOW_ICC             "18"
+#define PSIM_MSG_FUNCTION_SET_PROTOCOL_PARAMETERS "19"
+#define PSIM_MSG_FUNCTION_LIST_INTERFACES         "1A"
+#define PSIM_MSG_FUNCTION_LIST_CONTEXTS           "1B"
+#define PSIM_MSG_FUNCTION_IS_CONTEXT_SUPPORTED    "1C"
+#define PSIM_MSG_FUNCTION_GET_IFDSP               "1D"
+#define PSIM_MSG_FUNCTION_EJECT_ICC               "1E"
 
 
 /**
@@ -40,7 +51,7 @@ int PSIMStartHandshakeServer(int port);
  *
  * Returns either PSIM_SUCCESS or PSIM_NO_CARD_PRESENT. Any error case (e.g. disconnected sockets) is returned as PSIM_NO_CARD_PRESENT
  */
-int PSIMIsIccPresent(int lun);
+int PSIMIsIccPresent(DWORD lun);
 
 //TODO remove old definitions below
 //Special command APDUs supported by PersoSim

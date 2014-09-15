@@ -21,7 +21,7 @@
 int clientSocket = -1;
 
 // internal non-exported helper functions
-int transmit (char lun, const char* msgBuffer) {
+int transmit (DWORD lun, const char* msgBuffer) {
 	//TODO make this function lun-aware
 	//if no client connection is available return immediately
 	if (clientSocket < 0) {
@@ -32,6 +32,7 @@ int transmit (char lun, const char* msgBuffer) {
 	char transmitBuffer[bufferLength];
 	strcpy(transmitBuffer, msgBuffer);
 	strcat(transmitBuffer, "\n");
+	Log2(PCSC_LOG_DEBUG, "Sending message to client: %s", transmitBuffer);
 
 	if (send(clientSocket, transmitBuffer, bufferLength, MSG_NOSIGNAL) < 0) {
 			Log1(PCSC_LOG_ERROR, "Failure during transmit to client");
@@ -40,7 +41,7 @@ int transmit (char lun, const char* msgBuffer) {
 	return PSIM_SUCCESS;
 }
 
-int receive(char lun, char* response, int respLength) {
+int receive(DWORD lun, char* response, int respLength) {
 	//TODO make this function lun-aware
 	//if no client connection is available return immediately
 	if (clientSocket < 0) {
@@ -56,14 +57,14 @@ int receive(char lun, char* response, int respLength) {
 	if (len > 0) {
 		response[len-1] = '\0';
 	} else {
-		Log1(PCSC_LOG_ERROR, "Failure during receive from client");
+		Log1(PCSC_LOG_ERROR, "Failure during receive from client (no response received)");
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
 	return PSIM_SUCCESS;
 }
 
-int exchangePcscFunction(const char* function, char lun, const char* params, char * response, int respLength) {
+int exchangePcscFunction(const char* function, DWORD lun, const char* params, char * response, int respLength) {
 	//TODO make this function lun-aware
 
 	const int minLength = 6; // 2*function + divider + 2*lun + \0
@@ -72,7 +73,7 @@ int exchangePcscFunction(const char* function, char lun, const char* params, cha
 	char msgBuffer[bufferLength];
 	strcpy(msgBuffer, PSIM_MSG_FUNCTION_IS_ICC_PRESENT);
 	strcat(msgBuffer, PSIM_MSG_DIVIDER);
-	HexByte2Chars(lun, &msgBuffer[3]);
+	HexInt2String(lun, &msgBuffer[3]);
 	msgBuffer[bufferLength-1] = '\0';
 	if (bufferLength > minLength) {
 		strcat(msgBuffer, PSIM_MSG_DIVIDER);
@@ -150,52 +151,39 @@ int PSIMStartHandshakeServer(int port)
 
 
 	//hardcoded handshake
+	char handshakeLun = 0xff; //TODO handle this special case when making code lun aware
 	int msgBufferSize = 256;
 	char msgBuffer[msgBufferSize];
-	int len = 0;
-	do {
-		len += recv(clientSocket, msgBuffer + len, msgBufferSize - len, 0);
-		// if len == 0 after the first loop the connection was closed
-	} while (len > 0 && len < msgBufferSize && msgBuffer[len-1] != '\n');
-
-	if (len > 0) {
-		msgBuffer[len-1] = '\0';
-	} else {
+	int rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Client did not initiate a valid handshake");
 		return PSIM_COMMUNICATION_ERROR;
 	}
 	Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
 
-	if (send(clientSocket, "HELLO_IFD|LUN:00\n",17, MSG_NOSIGNAL) < 0) {
+	strcpy(msgBuffer, PSIM_MSG_HANDSHAKE_IFD_HELLO);
+	strcat(msgBuffer, PSIM_MSG_DIVIDER);
+	strcat(msgBuffer, "00"); //TODO hardcoded LUN
+	strcat(msgBuffer, "\n");
+	rv = transmit(handshakeLun, msgBuffer);
+	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not send response to handshake initialization");
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
-	len = 0;
-	do {
-		len += recv(clientSocket, msgBuffer + len, msgBufferSize - len, 0);
-		// if len == 0 after the first loop the connection was closed
-	} while (len > 0 && len < msgBufferSize && msgBuffer[len-1] != '\n');
-
-	if (len > 0) {
-		msgBuffer[len-1] = '\0';
-	} else {
+	rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Client did not correctly finish handshake");
 		return PSIM_COMMUNICATION_ERROR;
 	}
 	Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
-
-	if (send(clientSocket, "DONE_IFD\n",9, MSG_NOSIGNAL) < 0) {
-		Log1(PCSC_LOG_ERROR, "Could not send finish handshake response");
-		return PSIM_COMMUNICATION_ERROR;
-	}
 
 	//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
 
 	return PSIM_SUCCESS;
 }
 
-int PSIMIsIccPresent(int lun) {
+int PSIMIsIccPresent(DWORD lun) {
 	//prepare params and response
 	char params[1];
 	params[0] = '\0';
@@ -237,6 +225,7 @@ int PSIMCloseConnection()
  */
 void exchangeApdu(const char* cmdApdu, char* respApdu, int respApduSize)
 {
+	return;
 	//Log2(PCSC_LOG_DEBUG, "exchangeApdu command APDU\n%s\n", cmdApdu);
 
 	//ignore SIGPIPE for this function
