@@ -101,14 +101,7 @@ RESPONSECODE extractPcscResponseCode(const char* response) {
 	char responseCodeString[9];
 	strncpy(responseCodeString, response, 8);
 
-	union {
-		char c[8];
-		long l;
-	} responseCode;
-
-	HexString2CharArray(responseCodeString, &responseCode.c[0]);
-
-	return responseCode.l;
+	return HexString2Int(responseCodeString);
 }
 
 int PSIMStartHandshakeServer(int port)
