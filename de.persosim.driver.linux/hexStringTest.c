@@ -9,6 +9,7 @@ int testHexByte2Chars();
 int testHexInt2String();
 int testHexByteArray2String();
 int testHexString2CharArray();
+int testHexString2Int();
 int assertMatchInt(int, int, char*);
 int assertMatchCharArray(char*, char*, int, char*);
 
@@ -22,6 +23,7 @@ int main ()
 	nrOfErrors += testHexInt2String();
 	nrOfErrors += testHexByteArray2String();
 	nrOfErrors += testHexString2CharArray();
+	nrOfErrors += testHexString2Int();
 
 	printf("\nAll tests executed, %d errors found\n", nrOfErrors);
 	return nrOfErrors;
@@ -213,6 +215,24 @@ int testHexString2CharArray()
 	errors += assertMatchCharArray(expABC, bin, binLen, "HexString2CharArray(\"ABC\")");
 
 	return errors;	
+}
+
+int testHexString2Int()
+{
+	printf("testHexString2Int\n");
+	int errors = 0;
+
+	char hex[20];
+	char bin[10];
+	int binLen;
+
+
+	errors += assertMatchInt(HexString2Int("00"),0, "HexString2Int(\"00\")"); // simple single byte
+	errors += assertMatchInt(HexString2Int("F5"),0xF5, "HexString2Int(\"F5\")"); // single byte, highest bit set
+	errors += assertMatchInt(HexString2Int("012345"), 0x012345, "HexString2Int(\"012345\")"); // multiple bytes
+	errors += assertMatchInt(HexString2Int("ABC"),0xABC, "HexString2Int(\"ABC\")"); // odd number of input chars
+
+	return errors;
 }
 
 int assertMatchInt(int exp, int recv, char* msg)

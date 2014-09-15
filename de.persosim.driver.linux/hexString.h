@@ -14,4 +14,6 @@ extern int HexByteArray2String(const char*, int, char*);
 
 extern int HexString2CharArray(const char*, char*);
 
+extern int HexString2Int(const char*);
+
 #endif

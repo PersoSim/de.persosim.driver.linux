@@ -95,3 +95,18 @@ int HexString2CharArray(const char* hexString, char* bytes)
 	return binLength;
 }
 
+int HexString2Int(const char* hexString)
+{
+	int retVal = 0;
+	int hexStringLength = strlen(hexString);
+
+	int i = 0;
+	for (i=0; i < hexStringLength; i++)
+	{
+		retVal = retVal << 4;
+		retVal |= (HexChar2Int(hexString[i]) & 0x0FF);
+	}
+
+	return retVal;
+}
+
