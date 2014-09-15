@@ -1,5 +1,5 @@
 CC       = cc
-CFLAGS   = -g -std=gnu99 -fpic -Werror
+CFLAGS   = -g -std=gnu99 -fpic -Werror -fno-stack-protector
 INCLUDE  = -I. -I/usr/include/PCSC
 DEPENDFILE = .depend
 
