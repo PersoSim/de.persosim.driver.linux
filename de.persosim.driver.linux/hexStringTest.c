@@ -6,6 +6,7 @@
 int testHexChar2Int();
 int testHexNibble2Char();
 int testHexByte2Chars();
+int testHexInt2String();
 int testHexByteArray2String();
 int testHexString2CharArray();
 int assertMatchInt(int, int, char*);
@@ -18,6 +19,7 @@ int main ()
 	nrOfErrors += testHexChar2Int();
 	nrOfErrors += testHexNibble2Char();
 	nrOfErrors += testHexByte2Chars();
+	nrOfErrors += testHexInt2String();
 	nrOfErrors += testHexByteArray2String();
 	nrOfErrors += testHexString2CharArray();
 
@@ -107,9 +109,9 @@ int testHexByte2Chars()
 	return errors;	
 }
 
-int testHexByteArray2String()
+int testHexInt2String()
 {
-	printf("testHexByteArray2String\n");
+	printf("testHexInt2String\n");
 	int errors = 0;
 
 	char hex[20];
@@ -117,21 +119,54 @@ int testHexByteArray2String()
 	int binLen;
 
 	// simple single byte
-	char bin00[] = {0x00}; 
+	int bin00 = 0x00;
+	int len = HexInt2String(bin00, hex);
+	errors += assertMatchInt(8, len, "HexInt2String(\"00\") returned length");
+	errors += assertMatchInt(8, strlen(hex), "HexInt2String(\"00\") string length");
+	errors += assertMatchCharArray("00000000", hex, 3, "HexInt2String(\"00\")");
+ 
+	// single byte, highest bit set
+	int binF5 = 0xF5;
+	len = HexInt2String(binF5, hex);
+	errors += assertMatchInt(8, len, "HexInt2String(\"F5\") returned length");
+	errors += assertMatchInt(8, strlen(hex), "HexInt2String(\"F5\") string length");
+	errors += assertMatchCharArray("000000F5", hex, 3, "HexInt2String(\"F5\")");
+ 
+	// multiple bytes
+	int bin012345 = 0x012345;
+	len = HexInt2String(bin012345, hex);
+	errors += assertMatchInt(8, len, "HexInt2String(\"012345\") returned length");
+	errors += assertMatchInt(8, strlen(hex), "HexInt2String(\"012345\") string length");
+	errors += assertMatchCharArray("00012345", hex, 7, "HexInt2String(\"012345\")");
+
+	return errors;
+}
+
+int testHexByteArray2String()
+{
+	printf("testHexByteArray2String\n");
+	int errors = 0;
+
+	char hex[20];
+	char bin[10];
+	int binLen;
+
+	// simple single byte
+	char bin00[] = {0x00};
 	int len = HexByteArray2String(bin00, 1, hex);
 	errors += assertMatchInt(2, len, "HexByteArray2String(\"00\") returned length");
 	errors += assertMatchInt(2, strlen(hex), "HexByteArray2String(\"00\") string length");
 	errors += assertMatchCharArray("00", hex, 3, "HexByteArray2String(\"00\")");
- 
+
 	// single byte, highest bit set
-	char binF5[] = {0xF5}; 
+	char binF5[] = {0xF5};
 	len = HexByteArray2String(binF5, 1, hex);
 	errors += assertMatchInt(2, len, "HexByteArray2String(\"F5\") returned length");
 	errors += assertMatchInt(2, strlen(hex), "HexByteArray2String(\"F5\") string length");
 	errors += assertMatchCharArray("F5", hex, 3, "HexByteArray2String(\"F5\")");
- 
+
 	// multiple bytes
-	char bin012345[] = {0x01, 0x23, 0x45}; 
+	char bin012345[] = {0x01, 0x23, 0x45};
 	len = HexByteArray2String(bin012345, 3, hex);
 	errors += assertMatchInt(6, len, "HexByteArray2String(\"012345\") returned length");
 	errors += assertMatchInt(6, strlen(hex), "HexByteArray2String(\"012345\") string length");
@@ -197,6 +232,8 @@ int assertMatchCharArray(char* exp, char* recv, int length, char* msg)
 		if (exp[i] != recv[i])
 		{
 			printf("Testfailure. %s arrays differ at position %d, expected %hhX, received %hhX\n", msg, i, exp[i], recv[i]);
+			printf("Expected string: %s \n", exp);
+			printf("Received string: %s \n", recv);
 			return 1;
 		}
 	}

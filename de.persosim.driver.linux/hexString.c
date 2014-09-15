@@ -1,5 +1,6 @@
 /* hexString.c */
 #include <string.h>
+#include <stdio.h>
 
 #include "hexString.h"
 
@@ -37,6 +38,18 @@ int HexByte2Chars(char byte, char* chars)
 	// process low nibble
 	HexNibble2Char(byte & MASK_NIBBLE, chars+1);
 	return 2;
+}
+
+int HexInt2String(unsigned int input, char* hexString)
+{
+
+	HexByte2Chars(input >> 24, hexString);
+	HexByte2Chars(input >> 16, hexString + 2);
+	HexByte2Chars(input >> 8, hexString + 4);
+	HexByte2Chars(input     , hexString + 6);
+	hexString[8] = '\0';
+
+	return 8;
 }
 
 int HexByteArray2String(const char* bytes, int bytesLength, char* hexString)

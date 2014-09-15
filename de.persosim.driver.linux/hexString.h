@@ -8,6 +8,8 @@ extern int HexNibble2Char(char, char*);
 
 extern int HexByte2Chars(char, char*);
 
+extern int HexInt2String(unsigned int, char*);
+
 extern int HexByteArray2String(const char*, int, char*);
 
 extern int HexString2CharArray(const char*, char*);
