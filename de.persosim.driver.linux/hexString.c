@@ -40,6 +40,17 @@ int HexByte2Chars(char byte, char* chars)
 	return 2;
 }
 
+int HexByte2String(char byte, char* chars)
+{
+	// process content
+	HexByte2Chars(byte, chars);
+
+	//append \0
+	chars[2] = '\0';
+
+	return 2;
+}
+
 int HexInt2String(unsigned int input, char* hexString)
 {
 
