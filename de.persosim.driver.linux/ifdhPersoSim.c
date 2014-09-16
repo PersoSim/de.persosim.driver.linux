@@ -146,7 +146,7 @@ IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
 	//prepare params and response
-	char params[14];
+	char params[18]; // 8*Action + divider + 8*AtrLength + '\0'
 	HexInt2String(Action,params);
 	strcat(params, PSIM_MSG_DIVIDER);
 	HexInt2String(*AtrLength, &params[9]);
