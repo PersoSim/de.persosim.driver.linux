@@ -17,9 +17,6 @@ char intBuffer[BUFFERSIZE];
 char Hostname[DEVICENAMESIZE];
 char Port[DEVICENAMESIZE];
 
-int CachedAtrLength = 0;
-char CachedAtr[MAX_ATR_SIZE];
-
 
 RESPONSECODE
 IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
@@ -89,40 +86,31 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun %d, Tag %0#X)", Lun, Tag);
 
-	switch (Tag) {
-	case TAG_IFD_ATR:
-		// return the ATR and its size
+	//prepare params buffer
+	char params[18]; // 8*Tag + divider + 8*Length + '\0'
+	HexInt2String(Tag,params);
+	strcat(params, PSIM_MSG_DIVIDER);
+	HexInt2String(*Length, &params[9]);
 
-		// restrict returned bytes to minimum of *Length and CachedAtrLength
-		if (*Length > CachedAtrLength) 
-		{
-			*Length = CachedAtrLength;
-		}	
+	//prepare response buffer
+	long respBufferSize = *Length * 2 + 10;
+	char response[respBufferSize];
 
-		memcpy(Value, CachedAtr, *Length);
-		Log2(PCSC_LOG_DEBUG,
-		     "IFDHGetCapabilities with tag TAG_IFD_ATR called, returned %d bytes as atr", *Length);
-		return IFD_SUCCESS;
-		break;
-	case TAG_IFD_SIMULTANEOUS_ACCESS:
-		*Value = 1;
-		*Length = 1;
-		break;
-	case TAG_IFD_SLOTS_NUMBER:
-		*Value = 1;
-		*Length = 1;
-		break;
-	case TAG_IFD_SLOT_THREAD_SAFE:
-		*Value = 0;
-		*Length = 1;
-		break;
-	default:
-		Log2(PCSC_LOG_DEBUG,
-		     "IFDHGetCapabilities with unknown tag (%0#X) called", Tag);
-		return IFD_ERROR_TAG;
+	//forward pcsc function to client
+	int rv = exchangePcscFunction(PSIM_MSG_FUNCTION_GET_CAPABILITIES, Lun, params, response, respBufferSize);
+	if (rv != PSIM_SUCCESS) {
+		return IFD_COMMUNICATION_ERROR;
 	}
 
-	return IFD_SUCCESS;
+	//extract ATR
+	if (strlen(response) > 9) {
+		*Length = HexString2CharArray(&response[9], Value);
+	} else {
+		*Length = 0;
+	}
+
+	//return the response code
+	return extractPcscResponseCode(response);
 }
 
 RESPONSECODE
