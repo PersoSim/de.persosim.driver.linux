@@ -87,6 +87,7 @@ IFDHCloseChannel(DWORD Lun)
 RESPONSECODE
 IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 {
+	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun %d, Tag %0#X)", Lun, Tag);
 
 	switch (Tag) {
 	case TAG_IFD_ATR:
@@ -145,11 +146,14 @@ RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d)", Lun);
-	//prepare params and response
+
+	//prepare params buffer
 	char params[18]; // 8*Action + divider + 8*AtrLength + '\0'
 	HexInt2String(Action,params);
 	strcat(params, PSIM_MSG_DIVIDER);
 	HexInt2String(*AtrLength, &params[9]);
+
+	//prepare response buffer
 	char respBufferSize = 74;
 	char response[respBufferSize];
 
@@ -209,7 +213,7 @@ IFDHICCPresence(DWORD Lun)
 {
 	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
 	
-	//prepare buffer for response
+	//prepare response buffer
 	char respBufferSize = 9;
 	char response[respBufferSize];
 

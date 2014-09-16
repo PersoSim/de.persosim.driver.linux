@@ -67,19 +67,4 @@ int exchangePcscFunction(const char*, DWORD, const char*, char *, int);
 //TODO document this method
 RESPONSECODE extractPcscResponseCode(const char*);
 
-//TODO remove old definitions below
-//Special command APDUs supported by PersoSim
-#define PSIM_CMD_POWEROFF	"FF000000"
-#define PSIM_CMD_POWERON	"FF010000"
-#define PSIM_CMD_PING		"FF900000"
-#define PSIM_CMD_SWITCHOFF	"FFEE0000"
-#define PSIM_CMD_RESET		"FFFF0000"
-#define PSIM_CMD_LENGTH		9
-
-extern int PSIMCloseConnection();
-
-extern int PSIMIsConnected();
-
-extern void exchangeApdu(const char*, char*, int);
-
 #endif
