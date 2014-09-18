@@ -21,7 +21,7 @@ char Port[DEVICENAMESIZE];
 RESPONSECODE
 IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun %d, DeviceName %s)",
+	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun 0x%08X, DeviceName %s)",
 	     Lun, DeviceName);
 	// extract Hostname and Port from DeviceName
 	char* colon = strchr(DeviceName, ':');
@@ -47,7 +47,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	    TxBuffer, DWORD TxLength, PUCHAR RxBuffer, DWORD RxLength,
 	    LPDWORD pdwBytesReturned)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun %d, controlCode 0x%X)", Lun, dwControlCode);
+	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun 0x%08X, controlCode 0x%X)", Lun, dwControlCode);
 
 	//prepare params buffer
 	int pLength = 19 + TxLength * 2; // 8(controlCode) + divider + 2*TxLenght(TxBuffer) + divider + 8(RxLength) + '\0'
@@ -82,7 +82,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 RESPONSECODE
 IFDHCreateChannel(DWORD Lun, DWORD Channel)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun %d, Channel 0x%x)", Lun,
+	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun 0x%08X, Channel 0x%x)", Lun,
 	     Channel);
 
 	// start the handshake server
@@ -96,7 +96,7 @@ IFDHCreateChannel(DWORD Lun, DWORD Channel)
 RESPONSECODE
 IFDHCloseChannel(DWORD Lun)
 {
-	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun %d)", Lun);
+	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun 0x%08X)", Lun);
 	
 	// powerOff the simulator (also closes connection if needed)
 	DWORD AtrLength = MAX_ATR_SIZE;
@@ -110,7 +110,28 @@ IFDHCloseChannel(DWORD Lun)
 RESPONSECODE
 IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun %d, Tag 0x%X)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun 0x%08X, Tag 0x%X)", Lun, Tag);
+	//Check if Tag should be answered by the driver instead of the connector
+	switch (Tag) {
+		case TAG_IFD_SIMULTANEOUS_ACCESS:
+			*Value = PSIM_MAX_READERS;
+			*Length = 1;
+			return IFD_SUCCESS;
+		case TAG_IFD_SLOTS_NUMBER:
+			if (Lun == 0) {
+				*Value = 1;//TODO only one slot for the moment
+				*Length = 1;
+				return IFD_SUCCESS;
+			} else {
+				break;
+			}
+		case TAG_IFD_SLOT_THREAD_SAFE:
+			*Value = 0; //TODO check whether this can be set to true
+			*Length = 1;
+			return IFD_SUCCESS;
+		}
+
+	//forward other requests to the connector
 
 	//prepare params buffer
 	char params[18]; // 8(Tag) + divider + 8(Length) + '\0'
@@ -142,7 +163,7 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 RESPONSECODE
 IFDHSetCapabilities(DWORD Lun, DWORD Tag, DWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun %d, Tag 0x%X)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun 0x%08X, Tag 0x%X)", Lun, Tag);
 
 	//prepare params buffer
 	int pLenght = 10 + 2 * Length; // 8(Tag) + divider + 2*Length(Value) + '\0'
@@ -169,7 +190,7 @@ RESPONSECODE
 IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 			  UCHAR PTS1, UCHAR PTS2, UCHAR PTS3)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun %d, Protocol %d)", Lun, Protocol);
+	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun 0x%08X, Protocol %d)", Lun, Protocol);
 	Log5(PCSC_LOG_DEBUG, "using Flags 0x%x, PTS1 0x%x, PTS2 0x%x, PTS3 0x%x)", Flags, PTS1, PTS2, PTS3);
 
 	//prepare params buffer
@@ -201,7 +222,7 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun %d, Action %d)", Lun, Action);
+	Log3(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun 0x%08X, Action %d)", Lun, Action);
 
 	//prepare params buffer
 	char params[18]; // 8(Action) + divider + 8(AtrLength) + '\0'
@@ -235,7 +256,7 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 		  PUCHAR TxBuffer, DWORD TxLength, PUCHAR RxBuffer, PDWORD
 		  RxLength, PSCARD_IO_HEADER RecvPci)
 {
-	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun %d)", Lun);
+	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun 0x%08X)", Lun);
 	
 	//prepare params buffer
 	char params[10 + TxLength * 2];// 8(controlCode) + divider + 2*TxLenght(TxBuffer) + '\0'
@@ -267,7 +288,7 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 RESPONSECODE
 IFDHICCPresence(DWORD Lun)
 {
-	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun %d)", Lun);
+	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun 0x%08X)", Lun);
 	
 	//prepare response buffer
 	char respBufferSize = 9;

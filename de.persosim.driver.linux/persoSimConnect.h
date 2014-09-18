@@ -4,6 +4,9 @@
 #include <wintypes.h>
 #include <ifdhandler.h>
 
+//nr of supported readers (simultaneously connected connectors)
+#define PSIM_MAX_READERS 5
+
 //return values
 #define PSIM_SUCCESS				0
 #define PSIM_NO_CONNECTION			1
