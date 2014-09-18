@@ -8,6 +8,7 @@
 
 #include <errno.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -107,14 +108,79 @@ RESPONSECODE extractPcscResponseCode(const char* response) {
 	return HexString2Int(responseCodeString);
 }
 
+pthread_mutex_t handshakeServerMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_t handshakeThread;
+int handshakeSocket = 0;
+int acceptHandshakeConnections = 1;
+
+void * handleHandshakeConnections(void * param) {
+	while(acceptHandshakeConnections) {
+
+		Log1(PCSC_LOG_DEBUG, "Handshake server running");
+
+		//accept new client connection
+		clientSocket = accept(handshakeSocket, NULL, NULL);
+		if (clientSocket < 0) {
+			Log1(PCSC_LOG_ERROR, "Handshake socket failed to accept client connection, terminating handshake server");
+			break;
+		}
+
+
+		//hardcoded handshake
+		char handshakeLun = 0xff; //TODO handle this special case when making code lun aware
+		int msgBufferSize = 256;
+		char msgBuffer[msgBufferSize];
+		int rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+		if (rv != PSIM_SUCCESS) {
+			Log1(PCSC_LOG_ERROR, "Client did not initiate a valid handshake");
+			close(clientSocket);
+			continue;
+		}
+		Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
+
+		strcpy(msgBuffer, PSIM_MSG_HANDSHAKE_IFD_HELLO);
+		strcat(msgBuffer, PSIM_MSG_DIVIDER);
+		strcat(msgBuffer, "00"); //TODO hardcoded LUN
+		strcat(msgBuffer, "\n");
+		rv = transmit(handshakeLun, msgBuffer);
+		if (rv != PSIM_SUCCESS) {
+			Log1(PCSC_LOG_ERROR, "Could not send response to handshake initialization");
+			close(clientSocket);
+			continue;
+		}
+
+		rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+		if (rv != PSIM_SUCCESS) {
+			Log1(PCSC_LOG_ERROR, "Client did not correctly finish handshake");
+			close(clientSocket);
+			continue;
+		}
+		Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
+
+		//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
+	}
+
+	//must return something
+	return NULL;
+}
+
+
 int PSIMStartHandshakeServer(int port)
 {
-	//XXX put this off into another thread
+	pthread_mutex_lock(&handshakeServerMutex);
+
+	if (handshakeSocket > 0) {
+		//handshakeServer already running
+		pthread_mutex_unlock(&handshakeServerMutex);
+		return PSIM_SUCCESS;
+	}
+
 	//allocate handshake socket
-	int handshakeSocket = socket(AF_INET, SOCK_STREAM, 0);
+	handshakeSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (handshakeSocket < 0)
 	{
 		Log2(PCSC_LOG_ERROR, "Unable to allocate server socket for handshake (port %d)", port);
+		pthread_mutex_unlock(&handshakeServerMutex);
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
@@ -131,6 +197,7 @@ int PSIMStartHandshakeServer(int port)
 		Log3(PCSC_LOG_ERROR,
 				"Unable to bind server socket for handshake to port %d (errno=%d)",
 				port, errno);
+		pthread_mutex_unlock(&handshakeServerMutex);
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
@@ -141,46 +208,20 @@ int PSIMStartHandshakeServer(int port)
 		} else {
 			Log1(PCSC_LOG_ERROR, "Unable to listen on handshake socket");
 		}
+		pthread_mutex_unlock(&handshakeServerMutex);
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
-	//accept client connection
-	clientSocket = accept(handshakeSocket, NULL, NULL);
-	if (clientSocket < 0) {
-		Log1(PCSC_LOG_ERROR, "Handshake socket failed to accept client connection");
+	int rv;
+	if( (rv=pthread_create( &handshakeThread, NULL, &handleHandshakeConnections, NULL)) ){
+		Log2(PCSC_LOG_ERROR, "Unable to execute handshake handler thread (error=%d)", rv);
+
+		pthread_mutex_unlock(&handshakeServerMutex);
 		return PSIM_COMMUNICATION_ERROR;
 	}
 
+	pthread_mutex_unlock(&handshakeServerMutex);
 
-	//hardcoded handshake
-	char handshakeLun = 0xff; //TODO handle this special case when making code lun aware
-	int msgBufferSize = 256;
-	char msgBuffer[msgBufferSize];
-	int rv = receive(handshakeLun, msgBuffer, msgBufferSize);
-	if (rv != PSIM_SUCCESS) {
-		Log1(PCSC_LOG_ERROR, "Client did not initiate a valid handshake");
-		return PSIM_COMMUNICATION_ERROR;
-	}
-	Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
-
-	strcpy(msgBuffer, PSIM_MSG_HANDSHAKE_IFD_HELLO);
-	strcat(msgBuffer, PSIM_MSG_DIVIDER);
-	strcat(msgBuffer, "00"); //TODO hardcoded LUN
-	strcat(msgBuffer, "\n");
-	rv = transmit(handshakeLun, msgBuffer);
-	if (rv != PSIM_SUCCESS) {
-		Log1(PCSC_LOG_ERROR, "Could not send response to handshake initialization");
-		return PSIM_COMMUNICATION_ERROR;
-	}
-
-	rv = receive(handshakeLun, msgBuffer, msgBufferSize);
-	if (rv != PSIM_SUCCESS) {
-		Log1(PCSC_LOG_ERROR, "Client did not correctly finish handshake");
-		return PSIM_COMMUNICATION_ERROR;
-	}
-	Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
-
-	//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
 
 	return PSIM_SUCCESS;
 }
