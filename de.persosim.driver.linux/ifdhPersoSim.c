@@ -47,7 +47,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	    TxBuffer, DWORD TxLength, PUCHAR RxBuffer, DWORD RxLength,
 	    LPDWORD pdwBytesReturned)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun %d, controlCode %d)", Lun, dwControlCode);
+	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun %d, controlCode 0x%X)", Lun, dwControlCode);
 
 	//prepare params buffer
 	int pLength = 19 + TxLength * 2; // 8(controlCode) + divider + 2*TxLenght(TxBuffer) + divider + 8(RxLength) + '\0'
@@ -56,7 +56,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	strcat(params, PSIM_MSG_DIVIDER);
 	HexByteArray2String(TxBuffer, TxLength, &params[9]);
 	strcat(params, PSIM_MSG_DIVIDER);
-	HexInt2String(RxLength, &params[pLength-10]);
+	HexInt2String(RxLength, &params[pLength-9]);
 
 	//prepare response buffer
 	long respBufferSize = RxLength * 2 + 10;
@@ -110,7 +110,7 @@ IFDHCloseChannel(DWORD Lun)
 RESPONSECODE
 IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun %d, Tag %0#X)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun %d, Tag 0x%X)", Lun, Tag);
 
 	//prepare params buffer
 	char params[18]; // 8(Tag) + divider + 8(Length) + '\0'
@@ -142,7 +142,7 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 RESPONSECODE
 IFDHSetCapabilities(DWORD Lun, DWORD Tag, DWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun %d, Tag %d)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun %d, Tag 0x%X)", Lun, Tag);
 
 	//prepare params buffer
 	int pLenght = 10 + 2 * Length; // 8(Tag) + divider + 2*Length(Value) + '\0'
@@ -170,7 +170,7 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 			  UCHAR PTS1, UCHAR PTS2, UCHAR PTS3)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun %d, Protocol %d)", Lun, Protocol);
-	Log5(PCSC_LOG_DEBUG, "using Flags %0x, PTS1 %0x, PTS2 %0x, PTS3 %0x)", Flags, PTS1, PTS2, PTS3);
+	Log5(PCSC_LOG_DEBUG, "using Flags 0x%x, PTS1 0x%x, PTS2 0x%x, PTS3 0x%x)", Flags, PTS1, PTS2, PTS3);
 
 	//prepare params buffer
 	char params[21]; // 8(Protocol) + 4 * ( divider + flag/ptsx) + '\0'
