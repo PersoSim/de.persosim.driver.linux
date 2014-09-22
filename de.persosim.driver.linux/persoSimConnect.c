@@ -1,7 +1,6 @@
 #include "persoSimConnect.h"
 #include "hexString.h"
 
-#include <string.h>
 #include <debuglog.h>
 #include <ifdhandler.h>
 #include <pcsclite.h>
@@ -11,6 +10,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <sys/socket.h>
@@ -19,13 +19,12 @@
 #include <limits.h>
 
 // socket file descriptor for the connection to the client
-int clientSocket = -1;
+struct psim_connection connectors[PSIM_MAX_READERS];
 
 // internal non-exported helper functions
-int transmit (DWORD lun, const char* msgBuffer) {
-	//TODO make this function lun-aware
+int transmit (int sockfd, const char* msgBuffer) {
 	//if no client connection is available return immediately
-	if (clientSocket < 0) {
+	if (sockfd < 0) {
 		return PSIM_NO_CONNECTION;
 	}
 
@@ -35,23 +34,22 @@ int transmit (DWORD lun, const char* msgBuffer) {
 	strcat(transmitBuffer, "\n");
 	Log2(PCSC_LOG_DEBUG, "Sending message to client: %s", transmitBuffer);
 
-	if (send(clientSocket, transmitBuffer, bufferLength, MSG_NOSIGNAL) < 0) {
+	if (send(sockfd, transmitBuffer, bufferLength, MSG_NOSIGNAL) < 0) {
 			Log1(PCSC_LOG_ERROR, "Failure during transmit to client");
 			return PSIM_COMMUNICATION_ERROR;
 	}
 	return PSIM_SUCCESS;
 }
 
-int receive(DWORD lun, char* response, int respLength) {
-	//TODO make this function lun-aware
+int receive(int sockfd, char* response, int respLength) {
 	//if no client connection is available return immediately
-	if (clientSocket < 0) {
+	if (sockfd < 0) {
 		return PSIM_NO_CONNECTION;
 	}
 
 	int offset = 0;
 	do {
-		offset += recv(clientSocket, response + offset, respLength - offset, 0);
+		offset += recv(sockfd, response + offset, respLength - offset, 0);
 		// if len == 0 after the first loop the connection was closed
 	} while (offset > 0 && offset < respLength && response[offset-1] != '\n');
 
@@ -68,6 +66,8 @@ int receive(DWORD lun, char* response, int respLength) {
 
 int exchangePcscFunction(const char* function, DWORD lun, const char* params, char * response, int respLength) {
 	//TODO make this function lun-aware
+	struct psim_connection curReader = connectors[lun >> 16];
+
 
 	const int minLength = 12; // 2*function + divider + 8*lun + \0
 	const int paramLength = strlen(params);
@@ -82,15 +82,16 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 		strcat(msgBuffer, params);
 	}
 
-	Log2(PCSC_LOG_DEBUG, "PSIM transmit PCSC function: %s", msgBuffer);
+//	Log2(PCSC_LOG_DEBUG, "PSIM transmit PCSC function: %s", msgBuffer);
 
-	int rv = transmit(lun, msgBuffer);
+
+	int rv = transmit(curReader.clientSocket, msgBuffer);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not transmit PCSC function to PersoSim Connector");
 		return rv;
 	}
 
-	rv = receive(lun, response, respLength);
+	rv = receive(curReader.clientSocket, response, respLength);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not receive PCSC response from PersoSim Connector");
 		return rv;
@@ -116,10 +117,10 @@ int acceptHandshakeConnections = 1;
 void * handleHandshakeConnections(void * param) {
 	while(acceptHandshakeConnections) {
 
-		Log1(PCSC_LOG_DEBUG, "Handshake server running");
+		Log1(PCSC_LOG_DEBUG, "Handshake server accepting connections");
 
 		//accept new client connection
-		clientSocket = accept(handshakeSocket, NULL, NULL);
+		int clientSocket = accept(handshakeSocket, NULL, NULL);
 		if (clientSocket < 0) {
 			Log1(PCSC_LOG_ERROR, "Handshake socket failed to accept client connection, terminating handshake server");
 			break;
@@ -127,10 +128,9 @@ void * handleHandshakeConnections(void * param) {
 
 
 		//hardcoded handshake
-		char handshakeLun = 0xff; //TODO handle this special case when making code lun aware
 		int msgBufferSize = 256;
 		char msgBuffer[msgBufferSize];
-		int rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+		int rv = receive(clientSocket, msgBuffer, msgBufferSize);
 		if (rv != PSIM_SUCCESS) {
 			Log1(PCSC_LOG_ERROR, "Client did not initiate a valid handshake");
 			close(clientSocket);
@@ -138,24 +138,35 @@ void * handleHandshakeConnections(void * param) {
 		}
 		Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
 
+		//TODO select lun
+		int lun = 0x010000;
+
 		strcpy(msgBuffer, PSIM_MSG_HANDSHAKE_IFD_HELLO);
 		strcat(msgBuffer, PSIM_MSG_DIVIDER);
-		strcat(msgBuffer, "00"); //TODO hardcoded LUN
+		HexInt2String(lun, &msgBuffer[3]);
 		strcat(msgBuffer, "\n");
-		rv = transmit(handshakeLun, msgBuffer);
+		rv = transmit(clientSocket, msgBuffer);
 		if (rv != PSIM_SUCCESS) {
 			Log1(PCSC_LOG_ERROR, "Could not send response to handshake initialization");
 			close(clientSocket);
 			continue;
 		}
 
-		rv = receive(handshakeLun, msgBuffer, msgBufferSize);
+		rv = receive(clientSocket, msgBuffer, msgBufferSize);
 		if (rv != PSIM_SUCCESS) {
 			Log1(PCSC_LOG_ERROR, "Client did not correctly finish handshake");
 			close(clientSocket);
 			continue;
 		}
 		Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
+
+		// enable connector as new reader
+		connectors[lun >> 16].clientSocket = clientSocket;
+
+		//let pcsc rescan readers
+		raise(SIGUSR1);
+//		kill(getpid(), SIGUSR1);
+
 
 		//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
 	}
@@ -183,6 +194,10 @@ int PSIMStartHandshakeServer(int port)
 		pthread_mutex_unlock(&handshakeServerMutex);
 		return PSIM_COMMUNICATION_ERROR;
 	}
+
+	//allow SO_REUSEADDR to allow faster binding of the socket after a crash
+	int reuse = 1;
+	setsockopt(handshakeSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
 
 	struct sockaddr_in serverAddr;
 	memset(&serverAddr, 0, sizeof(serverAddr));
@@ -222,6 +237,11 @@ int PSIMStartHandshakeServer(int port)
 
 	pthread_mutex_unlock(&handshakeServerMutex);
 
-
 	return PSIM_SUCCESS;
+}
+
+int PSIMIsReaderAvailable(int lun) {
+	int readerNum = lun >> 16;
+	if (readerNum >= PSIM_MAX_READERS) return PSIM_NO_CONNECTION;
+	return (connectors[readerNum].clientSocket > 0) ? PSIM_SUCCESS : PSIM_NO_CONNECTION;
 }

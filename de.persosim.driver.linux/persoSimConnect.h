@@ -7,6 +7,10 @@
 //nr of supported readers (simultaneously connected connectors)
 #define PSIM_MAX_READERS 5
 
+struct psim_connection {
+	int clientSocket;
+};
+
 //return values
 #define PSIM_SUCCESS				0
 #define PSIM_NO_CONNECTION			1
@@ -48,7 +52,14 @@
  *
  * Returns either PSIM_SUCCESS or PSIM_COMMUNICATION_ERROR
  */
-int PSIMStartHandshakeServer(int port);
+int PSIMStartHandshakeServer(int);
+
+/**
+ * Check wheter a reader is connected on the given Lun.
+ *
+ * Returns either PSIM_SUCCESS or PSIM_NO_CONNECTION
+ */
+int PSIMIsReaderAvailable(int);
 
 /**
  * Transmit a PCSC function call as properly encoded message to the PersoSim driver connector.

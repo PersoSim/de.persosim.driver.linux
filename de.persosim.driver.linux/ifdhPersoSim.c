@@ -85,11 +85,16 @@ IFDHCreateChannel(DWORD Lun, DWORD Channel)
 	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun 0x%08lX, Channel 0x%lX)", Lun,
 	     Channel);
 
-	// start the handshake server
-	int portNo = (int) strtol(Port, (char **)NULL, 10);
-	int rv = PSIMStartHandshakeServer(portNo);
+	if (Lun == 0) {
+		// start the handshake server
+		int portNo = (int) strtol(Port, (char **)NULL, 10);
+		int rv = PSIMStartHandshakeServer(portNo);
 
-	return (rv == PSIM_SUCCESS) ? IFD_SUCCESS : IFD_COMMUNICATION_ERROR;
+		return (rv == PSIM_SUCCESS) ? IFD_SUCCESS : IFD_COMMUNICATION_ERROR;
+	} else {
+		return (PSIMIsReaderAvailable(Lun) == PSIM_SUCCESS) ? IFD_SUCCESS : IFD_NO_SUCH_DEVICE;
+	}
+
 }
 
 
@@ -131,6 +136,9 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 			return IFD_SUCCESS;
 		}
 
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_COMMUNICATION_ERROR;
+
 	//forward other requests to the connector
 
 	//prepare params buffer
@@ -165,6 +173,9 @@ IFDHSetCapabilities(DWORD Lun, DWORD Tag, DWORD Length, PUCHAR Value)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun 0x%08lX, Tag 0x%lX)", Lun, Tag);
 
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_COMMUNICATION_ERROR;
+
 	//prepare params buffer
 	int pLenght = 10 + 2 * Length; // 8(Tag) + divider + 2*Length(Value) + '\0'
 	char params[pLenght];
@@ -192,6 +203,9 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun 0x%08lX, Protocol %ld)", Lun, Protocol);
 	Log5(PCSC_LOG_DEBUG, "using Flags 0x%X, PTS1 0x%X, PTS2 0x%X, PTS3 0x%X)", Flags, PTS1, PTS2, PTS3);
+
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_COMMUNICATION_ERROR;
 
 	//prepare params buffer
 	char params[21]; // 8(Protocol) + 4 * ( divider + flag/ptsx) + '\0'
@@ -223,6 +237,9 @@ RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
 	Log3(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun 0x%08lX, Action %ld)", Lun, Action);
+
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_COMMUNICATION_ERROR;
 
 	//prepare params buffer
 	char params[18]; // 8(Action) + divider + 8(AtrLength) + '\0'
@@ -257,7 +274,10 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 		  RxLength, PSCARD_IO_HEADER RecvPci)
 {
 	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun 0x%08lX)", Lun);
-	
+
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_COMMUNICATION_ERROR;
+
 	//prepare params buffer
 	char params[10 + TxLength * 2];// 8(controlCode) + divider + 2*TxLenght(TxBuffer) + '\0'
 	HexByteArray2String(TxBuffer, TxLength, params);
@@ -288,7 +308,10 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 RESPONSECODE
 IFDHICCPresence(DWORD Lun)
 {
-	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun 0x%08X)", Lun);
+	//Log2(PCSC_LOG_DEBUG, "IFDHICCPresence (Lun 0x%08lX)", Lun);
+
+	// if reader not connected return IFD_COMMUNICATION_ERROR
+	if (PSIMIsReaderAvailable(Lun) != PSIM_SUCCESS) return IFD_ICC_NOT_PRESENT;
 	
 	//prepare response buffer
 	char respBufferSize = 9;
