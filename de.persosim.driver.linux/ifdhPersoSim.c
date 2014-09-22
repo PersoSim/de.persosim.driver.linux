@@ -21,7 +21,7 @@ char Port[DEVICENAMESIZE];
 RESPONSECODE
 IFDHCreateChannelByName(DWORD Lun, LPSTR DeviceName)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun 0x%08X, DeviceName %s)",
+	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannelByName (Lun 0x%08lX, DeviceName %s)",
 	     Lun, DeviceName);
 	// extract Hostname and Port from DeviceName
 	char* colon = strchr(DeviceName, ':');
@@ -47,7 +47,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 	    TxBuffer, DWORD TxLength, PUCHAR RxBuffer, DWORD RxLength,
 	    LPDWORD pdwBytesReturned)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun 0x%08X, controlCode 0x%X)", Lun, dwControlCode);
+	Log3(PCSC_LOG_DEBUG, "IFDHControl (Lun 0x%08lX, controlCode 0x%lX)", Lun, dwControlCode);
 
 	//prepare params buffer
 	int pLength = 19 + TxLength * 2; // 8(controlCode) + divider + 2*TxLenght(TxBuffer) + divider + 8(RxLength) + '\0'
@@ -82,7 +82,7 @@ IFDHControl(DWORD Lun, DWORD dwControlCode, PUCHAR
 RESPONSECODE
 IFDHCreateChannel(DWORD Lun, DWORD Channel)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun 0x%08X, Channel 0x%x)", Lun,
+	Log3(PCSC_LOG_DEBUG, "IFDHCreateChannel (Lun 0x%08lX, Channel 0x%lX)", Lun,
 	     Channel);
 
 	// start the handshake server
@@ -96,7 +96,7 @@ IFDHCreateChannel(DWORD Lun, DWORD Channel)
 RESPONSECODE
 IFDHCloseChannel(DWORD Lun)
 {
-	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun 0x%08X)", Lun);
+	Log2(PCSC_LOG_DEBUG, "IFDHCloseChannel (Lun 0x%08lX)", Lun);
 	
 	// powerOff the simulator (also closes connection if needed)
 	DWORD AtrLength = MAX_ATR_SIZE;
@@ -110,7 +110,7 @@ IFDHCloseChannel(DWORD Lun)
 RESPONSECODE
 IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun 0x%08X, Tag 0x%X)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHGetCapabilities (Lun 0x%08lX, Tag 0x%lX)", Lun, Tag);
 	//Check if Tag should be answered by the driver instead of the connector
 	switch (Tag) {
 		case TAG_IFD_SIMULTANEOUS_ACCESS:
@@ -163,7 +163,7 @@ IFDHGetCapabilities(DWORD Lun, DWORD Tag, PDWORD Length, PUCHAR Value)
 RESPONSECODE
 IFDHSetCapabilities(DWORD Lun, DWORD Tag, DWORD Length, PUCHAR Value)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun 0x%08X, Tag 0x%X)", Lun, Tag);
+	Log3(PCSC_LOG_DEBUG, "IFDHSetCapabilities (Lun 0x%08lX, Tag 0x%lX)", Lun, Tag);
 
 	//prepare params buffer
 	int pLenght = 10 + 2 * Length; // 8(Tag) + divider + 2*Length(Value) + '\0'
@@ -190,8 +190,8 @@ RESPONSECODE
 IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 			  UCHAR PTS1, UCHAR PTS2, UCHAR PTS3)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun 0x%08X, Protocol %d)", Lun, Protocol);
-	Log5(PCSC_LOG_DEBUG, "using Flags 0x%x, PTS1 0x%x, PTS2 0x%x, PTS3 0x%x)", Flags, PTS1, PTS2, PTS3);
+	Log3(PCSC_LOG_DEBUG, "IFDHSetProtocolParameters (Lun 0x%08lX, Protocol %ld)", Lun, Protocol);
+	Log5(PCSC_LOG_DEBUG, "using Flags 0x%X, PTS1 0x%X, PTS2 0x%X, PTS3 0x%X)", Flags, PTS1, PTS2, PTS3);
 
 	//prepare params buffer
 	char params[21]; // 8(Protocol) + 4 * ( divider + flag/ptsx) + '\0'
@@ -222,7 +222,7 @@ IFDHSetProtocolParameters(DWORD Lun, DWORD Protocol, UCHAR Flags,
 RESPONSECODE
 IFDHPowerICC(DWORD Lun, DWORD Action, PUCHAR Atr, PDWORD AtrLength)
 {
-	Log3(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun 0x%08X, Action %d)", Lun, Action);
+	Log3(PCSC_LOG_DEBUG, "IFDHPowerICC (Lun 0x%08lX, Action %ld)", Lun, Action);
 
 	//prepare params buffer
 	char params[18]; // 8(Action) + divider + 8(AtrLength) + '\0'
@@ -256,7 +256,7 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 		  PUCHAR TxBuffer, DWORD TxLength, PUCHAR RxBuffer, PDWORD
 		  RxLength, PSCARD_IO_HEADER RecvPci)
 {
-	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun 0x%08X)", Lun);
+	Log2(PCSC_LOG_DEBUG, "IFDHTransmitToICC (Lun 0x%08lX)", Lun);
 	
 	//prepare params buffer
 	char params[10 + TxLength * 2];// 8(controlCode) + divider + 2*TxLenght(TxBuffer) + '\0'
