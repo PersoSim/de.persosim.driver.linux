@@ -107,8 +107,6 @@ IFDHCloseChannel(DWORD Lun)
 	DWORD AtrLength = MAX_ATR_SIZE;
 	IFDHPowerICC(Lun, IFD_POWER_DOWN, intBuffer, &AtrLength);
 
-	//TODO kill handshake server after all channels are closed?
-
 	return IFD_SUCCESS;
 }
 

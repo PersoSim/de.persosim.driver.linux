@@ -21,6 +21,16 @@
 // socket file descriptor for the connection to the client
 struct psim_connection connectors[PSIM_MAX_READERS];
 
+struct psim_connection * getReaderConnection(DWORD lun) {
+	return &connectors[lun >> 16];
+}
+
+int PSIMIsReaderAvailable(int lun) {
+	int readerNum = lun >> 16;
+	if (readerNum >= PSIM_MAX_READERS) return PSIM_NO_CONNECTION;
+	return (connectors[readerNum].clientSocket > 0) ? PSIM_SUCCESS : PSIM_NO_CONNECTION;
+}
+
 // internal non-exported helper functions
 int transmit (int sockfd, const char* msgBuffer) {
 	//if no client connection is available return immediately
@@ -65,10 +75,13 @@ int receive(int sockfd, char* response, int respLength) {
 }
 
 int exchangePcscFunction(const char* function, DWORD lun, const char* params, char * response, int respLength) {
-	//TODO make this function lun-aware
-	struct psim_connection curReader = connectors[lun >> 16];
+	// check if a reader is connected at given lun
+//	if (PSIMIsReaderAvailable(lun) != PSIM_SUCCESS) {
+//		return PSIM_NO_CONNECTION;
+//	}
+	struct psim_connection * curReader = getReaderConnection(lun);
 
-
+	// build message buffer
 	const int minLength = 12; // 2*function + divider + 8*lun + \0
 	const int paramLength = strlen(params);
 	const int bufferLength = (paramLength) ?  minLength + 1 + paramLength : minLength;
@@ -85,13 +98,13 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 //	Log2(PCSC_LOG_DEBUG, "PSIM transmit PCSC function: %s", msgBuffer);
 
 
-	int rv = transmit(curReader.clientSocket, msgBuffer);
+	int rv = transmit(curReader->clientSocket, msgBuffer);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not transmit PCSC function to PersoSim Connector");
 		return rv;
 	}
 
-	rv = receive(curReader.clientSocket, response, respLength);
+	rv = receive(curReader->clientSocket, response, respLength);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not receive PCSC response from PersoSim Connector");
 		return rv;
@@ -140,6 +153,8 @@ void * handleHandshakeConnections(void * param) {
 
 		//TODO select lun
 		int lun = 0x010000;
+		lun = 0;
+		struct psim_connection * curReader = getReaderConnection(lun);
 
 		strcpy(msgBuffer, PSIM_MSG_HANDSHAKE_IFD_HELLO);
 		strcat(msgBuffer, PSIM_MSG_DIVIDER);
@@ -161,14 +176,13 @@ void * handleHandshakeConnections(void * param) {
 		Log2(PCSC_LOG_DEBUG, "Client finished handshake: %s\n", msgBuffer);
 
 		// enable connector as new reader
-		connectors[lun >> 16].clientSocket = clientSocket;
+		curReader->clientSocket = clientSocket;
 
 		//let pcsc rescan readers
 		raise(SIGUSR1);
-//		kill(getpid(), SIGUSR1);
 
 
-		//TODO implement closing and disposal of client sockets (through handshake as well as on errors)
+		//XXX implement closing and disposal of client sockets (through handshake as well as on errors)
 	}
 
 	//must return something
@@ -238,10 +252,4 @@ int PSIMStartHandshakeServer(int port)
 	pthread_mutex_unlock(&handshakeServerMutex);
 
 	return PSIM_SUCCESS;
-}
-
-int PSIMIsReaderAvailable(int lun) {
-	int readerNum = lun >> 16;
-	if (readerNum >= PSIM_MAX_READERS) return PSIM_NO_CONNECTION;
-	return (connectors[readerNum].clientSocket > 0) ? PSIM_SUCCESS : PSIM_NO_CONNECTION;
 }
