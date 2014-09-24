@@ -25,6 +25,18 @@ struct psim_connection * getReaderConnection(DWORD lun) {
 	return &connectors[lun >> 16];
 }
 
+int closeReaderConnection(DWORD lun) {
+	struct psim_connection * curReader = getReaderConnection(lun);
+
+	int sockfd = curReader->clientSocket;
+	curReader->clientSocket = 0;
+	if (sockfd > 0) {
+		close(sockfd);
+	}
+
+	return PSIM_SUCCESS;
+}
+
 int PSIMIsReaderAvailable(int lun) {
 	int readerNum = lun >> 16;
 	if (readerNum >= PSIM_MAX_READERS) return PSIM_NO_CONNECTION;
@@ -101,12 +113,14 @@ int exchangePcscFunction(const char* function, DWORD lun, const char* params, ch
 	int rv = transmit(curReader->clientSocket, msgBuffer);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not transmit PCSC function to PersoSim Connector");
+		closeReaderConnection(lun);
 		return rv;
 	}
 
 	rv = receive(curReader->clientSocket, response, respLength);
 	if (rv != PSIM_SUCCESS) {
 		Log1(PCSC_LOG_ERROR, "Could not receive PCSC response from PersoSim Connector");
+		closeReaderConnection(lun);
 		return rv;
 	}
 
@@ -150,6 +164,8 @@ void * handleHandshakeConnections(void * param) {
 			continue;
 		}
 		Log2(PCSC_LOG_DEBUG, "Client initiated handshake: %s\n", msgBuffer);
+
+		//TODO handle different handshake types, e.g. connection close by client
 
 		//TODO select lun
 		int lun = 0x010000;
