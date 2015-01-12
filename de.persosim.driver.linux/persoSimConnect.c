@@ -75,6 +75,7 @@ int receive(int sockfd, char* response, int respLength) {
 		// if len == 0 after the first loop the connection was closed
 	} while (offset > 0 && offset < respLength && response[offset-1] != '\n');
 
+	//FIXME handle Windows line endings
 	if (offset > 0) {
 		response[offset-1] = '\0';
 	} else {

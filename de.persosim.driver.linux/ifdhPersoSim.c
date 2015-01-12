@@ -279,7 +279,7 @@ IFDHTransmitToICC(DWORD Lun, SCARD_IO_HEADER SendPci,
 	//prepare params buffer
 	char params[10 + TxLength * 2];// 8(controlCode) + divider + 2*TxLenght(TxBuffer) + '\0'
 	HexByteArray2String(TxBuffer, TxLength, params);
-	strcat(params, PSIM_MSG_DIVIDER);
+	strcat(params, PSIM_MSG_DIVIDER); //XXX why include the RESP length twice???
 	HexInt2String(*RxLength, &params[TxLength * 2 + 1]);
 
 	//prepare response buffer
